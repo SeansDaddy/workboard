@@ -1,0 +1,6 @@
+{
+  "name": "主动运维工作台",
+  "description": "区域运维负责人首页控制台，聚合 pcare 工单、主动运维平台风险分析、例行作业与储能运营指标看板",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
