@@ -9,7 +9,6 @@ import {
 } from '../../types';
 import { TopSummaryBanner } from '../layout/TopSummaryBanner';
 import { UserWorkflowBar, WorkflowStepId } from '../layout/UserWorkflowBar';
-import { QuickAccessBar, QuickActionType } from '../layout/QuickAccessBar';
 import { 
   PriorityBadge, 
   RiskScoreBadge, 
@@ -59,7 +58,6 @@ interface WorkbenchViewProps {
   onOpenTaskProcess: (task: RoutineTaskItem) => void;
   onOpenTaskDetail: (task: RoutineTaskItem) => void;
   onCreateTicketFromTask: (task: RoutineTaskItem) => void;
-  onTriggerQuickAction: (action: QuickActionType) => void;
 }
 
 export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
@@ -74,8 +72,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   onConvertToTicket,
   onOpenTaskProcess,
   onOpenTaskDetail,
-  onCreateTicketFromTask,
-  onTriggerQuickAction
+  onCreateTicketFromTask
 }) => {
   // 当前工作流步骤筛选（默认 'all' 显示全部）
   const [workflowStep, setWorkflowStep] = useState<WorkflowStepId>('all');
@@ -702,9 +699,6 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
         inProgressTasksCount={tasks.filter(t => t.status === '执行中').length}
         myCompletedTicketsCount={myCompletedTicketsCount}
       />
-
-      {/* 快捷入口栏 */}
-      <QuickAccessBar onTriggerAction={onTriggerQuickAction} />
 
       {/* 动态内容区：根据 workflowStep 进行模块归类展示 */}
       {workflowStep === 'all' && (

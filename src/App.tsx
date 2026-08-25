@@ -5,7 +5,7 @@ import {
   RoutineTaskItem, 
   OperationsMetrics, 
   ActiveView, 
-  CONFIG_THRESHOLDS 
+  CONFIG_THRESHOLDS
 } from './types';
 import { 
   INITIAL_TICKETS, 
@@ -18,7 +18,6 @@ import {
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopSummaryBanner } from './components/layout/TopSummaryBanner';
-import { QuickAccessBar, QuickActionType } from './components/layout/QuickAccessBar';
 
 // Views & Pages
 import { WorkbenchView } from './components/views/WorkbenchView';
@@ -31,7 +30,6 @@ import { TicketProcessView } from './components/views/TicketProcessView';
 import { TicketDetailModal } from './components/views/TicketDetailModal';
 import { RiskDetailView } from './components/views/RiskDetailView';
 import { TaskProcessView } from './components/views/TaskProcessView';
-import { QuickActionModal } from './components/views/QuickActionModal';
 
 import { CheckCircle2, AlertCircle, Sparkles, X } from 'lucide-react';
 
@@ -48,9 +46,8 @@ export default function App() {
   const [selectedRisk, setSelectedRisk] = useState<RiskItem | null>(null);
   const [selectedTask, setSelectedTask] = useState<RoutineTaskItem | null>(null);
   
-  // Modals & Quick Actions
+  // Modals
   const [detailModalTicket, setDetailModalTicket] = useState<TicketItem | null>(null);
-  const [quickActionModal, setQuickActionModal] = useState<QuickActionType | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // Filter keys (support direct filtering from top summary clicks)
@@ -438,7 +435,6 @@ export default function App() {
               onOpenTaskProcess={handleOpenTaskProcess}
               onOpenTaskDetail={handleOpenTaskDetail}
               onCreateTicketFromTask={handleCreateTicketFromTask}
-              onTriggerQuickAction={(act) => setQuickActionModal(act)}
             />
           )}
         </main>
@@ -450,12 +446,6 @@ export default function App() {
         onClose={() => setDetailModalTicket(null)}
         onGoToProcess={handleOpenTicketProcess}
         onJumpToRisk={handleJumpToRisk}
-      />
-
-      {/* Quick Action Modal (故障诊断 / 报告生成 / 风险推送 / 风险跟踪 / 工单闭环) */}
-      <QuickActionModal
-        actionType={quickActionModal}
-        onClose={() => setQuickActionModal(null)}
       />
     </div>
   );

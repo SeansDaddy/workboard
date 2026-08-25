@@ -156,7 +156,6 @@ export type ActiveView =
   | 'ticket_detail'
   | 'risk_detail' 
   | 'task_process'
-  | 'quick_action_modal'
   | 'page_risk_center'
   | 'page_ticket_center'
   | 'page_task_center'
