@@ -7,9 +7,8 @@ import {
   FileText, 
   Sparkles,
   Layers,
-  RotateCcw
+  ArrowRight
 } from 'lucide-react';
-import { ActiveView } from '../../types';
 
 export type WorkflowStepId = 'all' | '01' | '02' | '03' | '04' | '05';
 
@@ -41,7 +40,9 @@ export const UserWorkflowBar: React.FC<UserWorkflowBarProps> = ({
       icon: ShieldAlert,
       iconColor: 'text-[#FA8C16]',
       iconBg: 'bg-[#FFF7E6]',
-      filterDesc: '仅展示：高风险预警与告警 + 储能资产态势'
+      filterDesc: '高风险预警与告警 + 储能资产态势',
+      flowOutput: '异常特征诊断包',
+      flowAction: '触发预警·带参下发'
     },
     {
       id: '02' as WorkflowStepId,
@@ -53,7 +54,9 @@ export const UserWorkflowBar: React.FC<UserWorkflowBarProps> = ({
       icon: PlusCircle,
       iconColor: 'text-[#1890FF]',
       iconBg: 'bg-[#E6F7FF]',
-      filterDesc: '仅展示：待办工单精选 + 例行作业计划'
+      filterDesc: '待办工单精选 + 例行作业计划',
+      flowOutput: 'pcare电子派工单',
+      flowAction: '指定责任·下发SLA'
     },
     {
       id: '03' as WorkflowStepId,
@@ -65,7 +68,9 @@ export const UserWorkflowBar: React.FC<UserWorkflowBarProps> = ({
       icon: Wrench,
       iconColor: 'text-[#F5222D]',
       iconBg: 'bg-[#FFF1F0]',
-      filterDesc: '仅展示：消缺在办工单 + 现场巡检作业'
+      filterDesc: '消缺在办工单 + 现场巡检作业',
+      flowOutput: '现场排故消缺记录',
+      flowAction: '现场打卡·排故上报'
     },
     {
       id: '04' as WorkflowStepId,
@@ -77,7 +82,9 @@ export const UserWorkflowBar: React.FC<UserWorkflowBarProps> = ({
       icon: CheckCircle2,
       iconColor: 'text-[#52C41A]',
       iconBg: 'bg-[#F6FFED]',
-      filterDesc: '仅展示：已完工/闭环工单 + 验收清单'
+      filterDesc: '已完工/闭环工单 + 验收清单',
+      flowOutput: '遥测恢复归档单',
+      flowAction: '遥测核验·签字归档'
     },
     {
       id: '05' as WorkflowStepId,
@@ -89,27 +96,29 @@ export const UserWorkflowBar: React.FC<UserWorkflowBarProps> = ({
       icon: FileText,
       iconColor: 'text-[#722ED1]',
       iconBg: 'bg-[#F9F0FF]',
-      filterDesc: '仅展示：储能资产态势简报 + 绩效复盘'
+      filterDesc: '储能资产态势简报 + 绩效复盘',
+      flowOutput: '运维白皮书案例库',
+      flowAction: '闭环达成·沉淀经验'
     }
   ];
 
   return (
-    <div className="bg-white rounded-lg p-3.5 border border-[#E8E8E8] shadow-none">
+    <div className="bg-white rounded-lg p-4 border border-[#E8E8E8] shadow-none space-y-3.5">
       {/* 头部标题、工作流过滤状态与重置按钮 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#F0F0F0]">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-1 h-3.5 bg-[#1890FF] rounded-xs" />
-          <span className="text-xs font-semibold text-[#1F1F1F]">
-            责任人闭环工作流筛选 (Workbench Flow Filter)
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#F0F0F0]">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="w-1.5 h-4 bg-[#1890FF] rounded-xs" />
+          <span className="text-sm font-bold text-[#1F1F1F]">
+            责任人闭环工作流全景与流转关系 (Closed-Loop Workflow Pipeline)
           </span>
           {selectedStep === 'all' ? (
-            <span className="text-[10px] text-[#52C41A] bg-[#F6FFED] px-1.5 py-0.2 rounded border border-[#B7EB8F] font-medium">
-              默认展示全部工作台模块
+            <span className="text-xs text-[#52C41A] bg-[#F6FFED] px-2 py-0.5 rounded border border-[#B7EB8F] font-semibold">
+              默认全流程贯通视图
             </span>
           ) : (
-            <span className="text-[10px] text-[#1890FF] bg-[#E6F7FF] px-1.5 py-0.2 rounded border border-[#91D5FF] font-medium flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              当前筛选: {steps.find(s => s.id === selectedStep)?.name} ({steps.find(s => s.id === selectedStep)?.filterDesc})
+            <span className="text-xs text-[#1890FF] bg-[#E6F7FF] px-2 py-0.5 rounded border border-[#91D5FF] font-semibold flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              当前聚焦环节: {steps.find(s => s.id === selectedStep)?.name} ({steps.find(s => s.id === selectedStep)?.filterDesc})
             </span>
           )}
         </div>
@@ -119,82 +128,120 @@ export const UserWorkflowBar: React.FC<UserWorkflowBarProps> = ({
           <button
             type="button"
             onClick={() => onSelectStep('all')}
-            className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
               selectedStep === 'all'
                 ? 'bg-[#1890FF] text-white shadow-xs'
                 : 'bg-[#F5F5F5] text-[#595959] hover:bg-[#E8E8E8] hover:text-[#1F1F1F]'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
+            <Layers className="w-4 h-4" />
             <span>全流程视图 (默认全部)</span>
           </button>
         </div>
       </div>
 
-      {/* 五大工作流分类卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5 pt-3">
-        {steps.map((st) => {
+      {/* 显性化流转管道：全流程横向串联与流转关系呈现 */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 md:gap-4 items-stretch">
+        {steps.map((st, idx) => {
           const Icon = st.icon;
           const isSelected = selectedStep === st.id;
+          const isLast = idx === steps.length - 1;
 
           return (
-            <div 
-              key={st.step}
-              onClick={() => onSelectStep(isSelected ? 'all' : st.id)}
-              className={`relative flex flex-col justify-between p-2.5 rounded border transition-all cursor-pointer select-none group ${
-                isSelected 
-                  ? 'bg-[#E6F7FF]/40 border-[#1890FF] ring-2 ring-[#1890FF]/20 shadow-xs' 
-                  : 'bg-[#FAFAFA] border-[#E8E8E8] hover:bg-white hover:border-[#1890FF]/60'
-              }`}
-            >
-              {/* 顶部序号与状态徽标 */}
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className={`font-mono text-[10px] font-bold ${
-                    isSelected ? 'text-[#1890FF]' : 'text-[#8C8C8C] group-hover:text-[#1890FF]'
-                  }`}>
-                    {st.step}
+            <div key={st.step} className="relative flex flex-col h-full">
+              {/* 单个节点卡片 */}
+              <div 
+                onClick={() => onSelectStep(isSelected ? 'all' : st.id)}
+                className={`relative flex flex-col justify-between p-3.5 rounded-lg border transition-all cursor-pointer select-none group h-full ${
+                  isSelected 
+                    ? 'bg-[#E6F7FF]/60 border-[#1890FF] ring-2 ring-[#1890FF]/30 shadow-xs' 
+                    : 'bg-[#FAFAFA] border-[#E8E8E8] hover:bg-white hover:border-[#1890FF]/70 hover:shadow-xs'
+                }`}
+              >
+                {/* 顶部序号与状态徽标 */}
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                      isSelected 
+                        ? 'bg-[#1890FF] text-white border-[#1890FF]' 
+                        : 'bg-white text-[#595959] border-[#D9D9D9] group-hover:border-[#1890FF] group-hover:text-[#1890FF]'
+                    }`}>
+                      {st.step}
+                    </span>
+                    <div className={`p-1.5 rounded-md ${st.iconBg} ${st.iconColor} border border-current/20`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${st.badgeColor}`}>
+                    {st.badge}
                   </span>
-                  <div className={`p-1 rounded ${st.iconBg} ${st.iconColor}`}>
-                    <Icon className="w-3.5 h-3.5" />
+                </div>
+
+                {/* 步骤名称与描述 */}
+                <div className="space-y-1 my-1">
+                  <div className={`text-sm font-bold flex items-center justify-between ${
+                    isSelected ? 'text-[#0050B3]' : 'text-[#1F1F1F] group-hover:text-[#1890FF]'
+                  }`}>
+                    <span>{st.name}</span>
+                    {isSelected ? (
+                      <span className="text-xs text-[#1890FF] font-semibold bg-white px-2 py-0.5 rounded border border-[#91D5FF]">
+                        当前聚焦
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[#8C8C8C] group-hover:text-[#1890FF] transition-colors">
+                        筛选 ➔
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-[#8C8C8C] leading-snug">
+                    {st.sub}
                   </div>
                 </div>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium ${st.badgeColor}`}>
-                  {st.badge}
-                </span>
-              </div>
 
-              {/* 步骤名称与描述 */}
-              <div className="space-y-0.5 my-1">
-                <div className={`text-xs font-semibold flex items-center justify-between ${
-                  isSelected ? 'text-[#0050B3]' : 'text-[#1F1F1F] group-hover:text-[#1890FF]'
-                }`}>
-                  <span>{st.name}</span>
-                  {isSelected && (
-                    <span className="text-[10px] text-[#1890FF] font-medium bg-white px-1 rounded border border-[#91D5FF]">
-                      展示中
+                {/* 显性流转输出物与阶段产出标签 */}
+                <div className="mt-2.5 pt-2.5 border-t border-[#F0F0F0] space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#8C8C8C]">阶段产出:</span>
+                    <span className="font-semibold text-[#262626] truncate max-w-[120px]" title={st.flowOutput}>
+                      {st.flowOutput}
                     </span>
-                  )}
-                </div>
-                <div className="text-[10px] text-[#8C8C8C] leading-tight">
-                  {st.sub}
+                  </div>
                 </div>
               </div>
 
-              {/* 底部视图切换提示 */}
-              <div className="pt-2 mt-1 border-t border-[#F0F0F0] flex items-center justify-between text-[10px]">
-                <span className="text-[#8C8C8C]">
-                  {isSelected ? '点击取消筛选' : '点击切换工作台'}
-                </span>
-                <span className={`font-medium ${
-                  isSelected ? 'text-[#1890FF]' : 'text-[#8C8C8C] group-hover:text-[#1890FF]'
-                }`}>
-                  {isSelected ? '已选中' : '筛选'}
-                </span>
-              </div>
+              {/* 居中对齐的流转关系指示箭头 (仅在节点之间展示) */}
+              {!isLast && (
+                <div className="hidden md:flex absolute -right-3.5 top-1/2 -translate-y-1/2 z-20 items-center justify-center pointer-events-none">
+                  <div 
+                    className="bg-white border border-[#1890FF]/50 text-[#1890FF] rounded-full p-1 shadow-sm flex items-center justify-center"
+                    title={`流转动作: ${st.flowAction}`}
+                  >
+                    <ArrowRight className="w-3.5 h-3.5 text-[#1890FF]" />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* 底部全链路流转关系说明横条 (显性指引端到端流转逻辑) */}
+      <div className="bg-[#FAFAFA] rounded-md p-2.5 px-3.5 border border-[#E8E8E8] text-xs text-[#595959] flex flex-col md:flex-row md:items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-bold text-[#1F1F1F] shrink-0">流转链路:</span>
+          <span className="text-[#FA8C16] font-semibold">01 主动研判 (预警发现)</span>
+          <span className="text-[#8C8C8C]">➔[带参派发]➔</span>
+          <span className="text-[#1890FF] font-semibold">02 工单派发 (下发pcare)</span>
+          <span className="text-[#8C8C8C]">➔[派驻消缺]➔</span>
+          <span className="text-[#F5222D] font-semibold">03 现场消缺 (SLA履约)</span>
+          <span className="text-[#8C8C8C]">➔[完工上报]➔</span>
+          <span className="text-[#52C41A] font-semibold">04 复核验收 (遥测恢复)</span>
+          <span className="text-[#8C8C8C]">➔[经验沉淀]➔</span>
+          <span className="text-[#722ED1] font-semibold">05 报告复盘 (白皮书)</span>
+        </div>
+        <span className="text-xs text-[#8C8C8C] shrink-0">
+          点击任意节点即可联动工作台模块
+        </span>
       </div>
     </div>
   );

@@ -156,11 +156,29 @@ export type ActiveView =
   | 'ticket_detail'
   | 'risk_detail' 
   | 'task_process'
+  // 风险与告警
+  | 'screen_posture'
   | 'page_risk_center'
+  | 'alarm_current'
+  | 'alarm_history'
+  | 'alarm_push_config'
+  | 'warning_current'
+  | 'warning_push_config'
+  | 'risk_tasks'
+  // 运维处置
   | 'page_ticket_center'
   | 'page_task_center'
+  // 分析诊断
+  | 'health_inspection'
+  | 'ai_diagnosis'
+  | 'analysis_perf'
+  | 'analysis_config'
   | 'page_dashboard'
-  | 'page_report_center';
+  | 'page_report_center'
+  // 资产管理 assets
+  | 'device_management'
+  | 'device_upgrade'
+  | 'station_management';
 
 // 阈值常量配置 (可在 mock 中统一读取与调整)
 export const CONFIG_THRESHOLDS = {

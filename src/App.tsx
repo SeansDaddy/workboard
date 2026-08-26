@@ -30,6 +30,10 @@ import { TicketProcessView } from './components/views/TicketProcessView';
 import { TicketDetailModal } from './components/views/TicketDetailModal';
 import { RiskDetailView } from './components/views/RiskDetailView';
 import { TaskProcessView } from './components/views/TaskProcessView';
+import { TicketProcessDrawer } from './components/views/TicketProcessDrawer';
+import { TaskProcessDrawer } from './components/views/TaskProcessDrawer';
+import { SubPagePlaceholder } from './components/views/SubPagePlaceholder';
+import { AiDiagnosisPage } from './components/views/AiDiagnosisPage';
 
 import { CheckCircle2, AlertCircle, Sparkles, X } from 'lucide-react';
 
@@ -46,8 +50,10 @@ export default function App() {
   const [selectedRisk, setSelectedRisk] = useState<RiskItem | null>(null);
   const [selectedTask, setSelectedTask] = useState<RoutineTaskItem | null>(null);
   
-  // Modals
+  // Modals & Drawers
   const [detailModalTicket, setDetailModalTicket] = useState<TicketItem | null>(null);
+  const [drawerTicket, setDrawerTicket] = useState<TicketItem | null>(null);
+  const [drawerTask, setDrawerTask] = useState<RoutineTaskItem | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // Filter keys (support direct filtering from top summary clicks)
@@ -247,6 +253,40 @@ export default function App() {
     });
   };
 
+  const handleCreateTicketFromAI = (aiData: {
+    title: string;
+    stationName: string;
+    priority: '高' | '中' | '低';
+    riskScore: number;
+    description: string;
+    suggestedAction: string;
+  }) => {
+    const newTicketId = `PC-20260825-0${tickets.length + 1}`;
+    const newTicket: TicketItem = {
+      id: newTicketId,
+      title: aiData.title,
+      priority: aiData.priority,
+      riskScore: aiData.riskScore,
+      stationId: 'ST-NT-001',
+      stationName: aiData.stationName,
+      region: '江苏·南通',
+      assignee: '张海波 (特种作业电气工程师)',
+      createdAt: '2026-08-25 ' + new Date().toTimeString().slice(0, 5),
+      slaRemainingHours: 4.0,
+      slaDeadline: '2026-08-25 18:00',
+      status: '待受理',
+      description: aiData.description,
+      suggestedAction: aiData.suggestedAction
+    };
+
+    setTickets((prev) => [newTicket, ...prev]);
+    setToastMessage({
+      title: `已生成 AI 诊断闭环消缺工单 ${newTicketId}`,
+      desc: `已推送现场特种电气作业组，SLA 响应倒计时已启动`,
+      type: 'success'
+    });
+  };
+
   // Bidirectional Jump Handlers
   const handleJumpToTicket = (ticketId: string) => {
     const target = tickets.find((t) => t.id === ticketId);
@@ -417,6 +457,41 @@ export default function App() {
             />
           )}
 
+          {currentView === 'ai_diagnosis' && (
+            <AiDiagnosisPage
+              onReturnToWorkbench={() => setCurrentView('workbench')}
+              onNavigate={(view) => {
+                setCurrentView(view);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onConvertToTicket={handleCreateTicketFromAI}
+            />
+          )}
+
+          {/* Subpages for New Menu Routes (Screen, Alarms, Warnings, Diagnostics, Assets, etc.) */}
+          {(currentView === 'screen_posture' ||
+            currentView === 'alarm_current' ||
+            currentView === 'alarm_history' ||
+            currentView === 'alarm_push_config' ||
+            currentView === 'warning_current' ||
+            currentView === 'warning_push_config' ||
+            currentView === 'risk_tasks' ||
+            currentView === 'health_inspection' ||
+            currentView === 'analysis_perf' ||
+            currentView === 'analysis_config' ||
+            currentView === 'device_management' ||
+            currentView === 'device_upgrade' ||
+            currentView === 'station_management') && (
+            <SubPagePlaceholder
+              view={currentView}
+              onReturnToWorkbench={() => setCurrentView('workbench')}
+              onNavigate={(view) => {
+                setCurrentView(view);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          )}
+
           {/* Streamlined Workbench Cockpit View */}
           {currentView === 'workbench' && (
             <WorkbenchView
@@ -428,11 +503,11 @@ export default function App() {
                 setCurrentView(view);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              onOpenTicketProcess={handleOpenTicketProcess}
+              onOpenTicketProcess={(ticket) => setDrawerTicket(ticket)}
               onOpenTicketDetail={handleOpenTicketDetail}
               onOpenRiskDetail={handleOpenRiskDetail}
               onConvertToTicket={handleConvertToTicket}
-              onOpenTaskProcess={handleOpenTaskProcess}
+              onOpenTaskProcess={(task) => setDrawerTask(task)}
               onOpenTaskDetail={handleOpenTaskDetail}
               onCreateTicketFromTask={handleCreateTicketFromTask}
             />
@@ -440,11 +515,30 @@ export default function App() {
         </main>
       </div>
 
+      {/* Ticket Process Right Drawer (for Workbench quick action) */}
+      <TicketProcessDrawer
+        ticket={drawerTicket}
+        onClose={() => setDrawerTicket(null)}
+        onUpdateStatus={handleUpdateTicketStatus}
+        onJumpToRisk={handleJumpToRisk}
+      />
+
+      {/* Task Process Right Drawer (for Workbench quick action) */}
+      <TaskProcessDrawer
+        task={drawerTask}
+        onClose={() => setDrawerTask(null)}
+        onUpdateTask={handleUpdateTask}
+        onCreateTicketFromTask={handleCreateTicketFromTask}
+      />
+
       {/* Ticket Detail Inspection Modal */}
       <TicketDetailModal
         ticket={detailModalTicket}
         onClose={() => setDetailModalTicket(null)}
-        onGoToProcess={handleOpenTicketProcess}
+        onGoToProcess={(ticket) => {
+          setDetailModalTicket(null);
+          setDrawerTicket(ticket);
+        }}
         onJumpToRisk={handleJumpToRisk}
       />
     </div>
