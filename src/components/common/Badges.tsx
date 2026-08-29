@@ -77,15 +77,15 @@ export const SlaBadge: React.FC<{ remainingHours: number; deadline?: string }> =
 
   if (remainingHours < CONFIG_THRESHOLDS.SLA_URGENT_HOURS) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-[#FA8C16] text-white">
-        <Clock className="w-3 h-3" />
-        余 {remainingHours.toFixed(1)}h (临期)
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-[#FFF7E6] text-[#D46B08] border border-[#FFD591]">
+        <Clock className="w-3 h-3 text-[#FA8C16]" />
+        余 {remainingHours.toFixed(1)}h
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] text-[#595959] bg-[#F5F5F5] border border-[#E8E8E8] tabular-nums">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-[#595959] bg-[#F5F5F5] border border-[#E8E8E8] tabular-nums">
       <Clock className="w-3 h-3 text-[#8C8C8C]" />
       余 {remainingHours.toFixed(1)}h
     </span>
@@ -114,16 +114,16 @@ export const TicketStatusBadge: React.FC<{ status: TicketStatus }> = ({ status }
 export const RiskTypeBadge: React.FC<{ type: RiskType }> = ({ type }) => {
   if (type === '预警') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-[#FFF7E6] text-[#D46B08] border border-[#FFD591]">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-[#FFF7E6] text-[#D46B08] border border-[#FFD591]">
         <Sparkles className="w-3 h-3 text-[#FA8C16]" />
-        预警 (预测)
+        预警
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-[#FFF1F0] text-[#CF1322] border border-[#FFA39E]">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-[#FFF1F0] text-[#CF1322] border border-[#FFA39E]">
       <AlertCircle className="w-3 h-3 text-[#F5222D]" />
-      告警 (发生)
+      告警
     </span>
   );
 };

@@ -36,44 +36,39 @@ export const Header: React.FC<HeaderProps> = ({ onSearch, onOpenNotifications })
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-md bg-[#1890FF] flex items-center justify-center text-white shadow-xs">
-            <Zap className="w-5 h-5 fill-current" />
+            <Zap className="w-4.5 h-4.5 fill-current" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-tight text-[#1F1F1F]">主动运维平台</span>
-              <span className="text-xs uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-blue-50 text-[#1890FF] border border-blue-100">
-                PROACTIVE O&M
-              </span>
+              <span className="font-semibold text-base tracking-tight text-[#1F1F1F]">储能主动运维平台</span>
             </div>
-            <p className="text-xs text-[#8C8C8C] leading-tight">区域运维控制台 · 首页工作台</p>
           </div>
         </div>
 
-        <div className="h-5 w-px bg-[#E8E8E8] hidden md:block" />
+        <div className="h-4 w-px bg-[#E8E8E8] hidden md:block" />
 
         {/* Region Switcher */}
         <div className="relative hidden sm:block">
           <div
             onMouseEnter={() => setShowRegionTip(true)}
             onMouseLeave={() => setShowRegionTip(false)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#F5F5F5] border border-[#E8E8E8] text-[#595959] text-sm font-medium cursor-not-allowed"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#F5F5F5] border border-[#E8E8E8] text-[#595959] text-xs font-medium cursor-not-allowed"
           >
-            <MapPin className="w-4 h-4 text-[#1890FF]" />
+            <MapPin className="w-3.5 h-3.5 text-[#595959]" />
             <span>{CONFIG_THRESHOLDS.CURRENT_REGION}</span>
-            <Lock className="w-3.5 h-3.5 text-[#8C8C8C] ml-0.5" />
-            <ChevronDown className="w-3.5 h-3.5 text-[#8C8C8C]" />
+            <Lock className="w-3 h-3 text-[#8C8C8C] ml-0.5" />
           </div>
           {showRegionTip && (
-            <div className="absolute top-full left-0 mt-1 z-50 px-3 py-2 rounded bg-[#1F1F1F] text-white text-xs whitespace-nowrap shadow-md animate-in fade-in duration-150">
-              🔒 当前登录账号权限范围已锁定：华东区域运维中心 (Demo固定)
+            <div className="absolute top-full left-0 mt-1 z-50 px-2.5 py-1.5 rounded bg-[#1F1F1F] text-white text-xs whitespace-nowrap shadow-md animate-in fade-in duration-150">
+              华东区域运维中心
             </div>
           )}
         </div>
 
         {/* Real-time sync status */}
-        <div className="hidden lg:flex items-center gap-2 text-sm text-[#595959] bg-[#F6FFED] px-3 py-1.5 rounded border border-[#B7EB8F]">
-          <span className="w-2 h-2 rounded-full bg-[#52C41A] animate-pulse" />
-          <span className="text-[#389E0D] font-medium text-xs">预测引擎运行中 · 10s前已同步</span>
+        <div className="hidden lg:flex items-center gap-1.5 text-xs text-[#8C8C8C]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
+          <span>已同步</span>
         </div>
       </div>
 

@@ -4,10 +4,7 @@ import {
   ShieldAlert, 
   CheckSquare, 
   CheckCircle2, 
-  ArrowUpRight, 
-  AlertTriangle, 
-  Sparkles,
-  Award
+  ArrowUpRight
 } from 'lucide-react';
 
 interface TopSummaryBannerProps {
@@ -40,67 +37,64 @@ export const TopSummaryBanner: React.FC<TopSummaryBannerProps> = ({
   onFilterTasks
 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-      {/* 1. 待我处理 */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* 1. 待处理工单 */}
       <div 
         onClick={() => onFilterTickets?.('mine_high_risk')}
-        className="bg-white rounded-lg p-4 border border-[#E8E8E8] shadow-none hover:border-[#1890FF] transition-all cursor-pointer group"
+        className="bg-white rounded-lg p-3.5 border border-[#E8E8E8] shadow-none hover:border-[#1890FF] transition-all cursor-pointer group"
       >
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-semibold text-[#8C8C8C] flex items-center gap-1.5">
-            <Inbox className="w-4 h-4 text-[#1890FF]" />
+        <div className="flex items-center justify-between text-xs text-[#8C8C8C] mb-1">
+          <span className="flex items-center gap-1.5 font-medium text-[#595959]">
+            <Inbox className="w-3.5 h-3.5 text-[#1890FF]" />
             待我处理工单
           </span>
-          <span className="text-xs text-[#1890FF] font-semibold group-hover:underline flex items-center">
-            查看 <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-          </span>
+          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-[#1890FF]" />
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-[#1F1F1F] tracking-tight">
+        <div className="flex items-baseline gap-1.5 mt-1">
+          <span className="text-2xl font-bold text-[#1F1F1F] font-mono">
             {myPendingTicketsCount}
           </span>
-          <span className="text-sm text-[#8C8C8C]">件在办</span>
+          <span className="text-xs text-[#8C8C8C]">单</span>
         </div>
 
-        <div className="mt-3 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-[#FFF1F0] text-[#F5222D] border border-[#FFA39E]">
-            <span className="w-2 h-2 rounded-full bg-[#F5222D]" />
-            高风险 {myHighRiskTicketsCount} 件
-          </span>
-          <span className="text-xs text-[#8C8C8C]">优先处理</span>
+        <div className="mt-2.5 flex items-center gap-2">
+          {myHighRiskTicketsCount > 0 ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-[#F5222D] bg-[#FFF1F0] font-medium border border-[#FFA39E]/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5222D]" />
+              高风险 {myHighRiskTicketsCount}
+            </span>
+          ) : (
+            <span className="text-xs text-[#8C8C8C]">暂无高风险</span>
+          )}
         </div>
       </div>
 
-      {/* 2. 未处理风险 */}
+      {/* 2. 待处理风险 */}
       <div 
         onClick={() => onFilterRisks?.('unhandled_warning')}
-        className="bg-white rounded-lg p-4 border border-[#E8E8E8] shadow-none hover:border-[#FA8C16] transition-all cursor-pointer group"
+        className="bg-white rounded-lg p-3.5 border border-[#E8E8E8] shadow-none hover:border-[#1890FF] transition-all cursor-pointer group"
       >
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-semibold text-[#8C8C8C] flex items-center gap-1.5">
-            <ShieldAlert className="w-4 h-4 text-[#FA8C16]" />
-            未处理风险
+        <div className="flex items-center justify-between text-xs text-[#8C8C8C] mb-1">
+          <span className="flex items-center gap-1.5 font-medium text-[#595959]">
+            <ShieldAlert className="w-3.5 h-3.5 text-[#FA8C16]" />
+            未处置风险
           </span>
-          <span className="text-xs text-[#FA8C16] font-semibold group-hover:underline flex items-center">
-            溯源 <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-          </span>
+          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-[#1890FF]" />
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-[#1F1F1F] tracking-tight">
+        <div className="flex items-baseline gap-1.5 mt-1">
+          <span className="text-2xl font-bold text-[#1F1F1F] font-mono">
             {unhandledRiskCount}
           </span>
-          <span className="text-sm text-[#8C8C8C]">项待介入</span>
+          <span className="text-xs text-[#8C8C8C]">项</span>
         </div>
 
-        <div className="mt-3 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-[#D46B08] bg-[#FFF7E6] px-2 py-0.5 rounded border border-[#FFD591]">
-            <Sparkles className="w-3.5 h-3.5 text-[#FA8C16]" />
+        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-[#595959]">
+          <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E8E8E8]">
             预警 {unhandledWarningsCount}
           </span>
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-[#CF1322] bg-[#FFF1F0] px-2 py-0.5 rounded border border-[#FFA39E]">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#F5222D]" />
+          <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E8E8E8]">
             告警 {unhandledAlarmsCount}
           </span>
         </div>
@@ -109,67 +103,58 @@ export const TopSummaryBanner: React.FC<TopSummaryBannerProps> = ({
       {/* 3. 今日到期作业 */}
       <div 
         onClick={() => onFilterTasks?.('overdue_or_today')}
-        className="bg-white rounded-lg p-4 border border-[#E8E8E8] shadow-none hover:border-[#F5222D] transition-all cursor-pointer group"
+        className="bg-white rounded-lg p-3.5 border border-[#E8E8E8] shadow-none hover:border-[#1890FF] transition-all cursor-pointer group"
       >
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-semibold text-[#8C8C8C] flex items-center gap-1.5">
-            <CheckSquare className="w-4 h-4 text-[#722ED1]" />
-            今日到期例行作业
+        <div className="flex items-center justify-between text-xs text-[#8C8C8C] mb-1">
+          <span className="flex items-center gap-1.5 font-medium text-[#595959]">
+            <CheckSquare className="w-3.5 h-3.5 text-[#595959]" />
+            今日到期作业
           </span>
-          <span className="text-xs text-[#722ED1] font-semibold group-hover:underline flex items-center">
-            消缺 <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-          </span>
+          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-[#1890FF]" />
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-[#1F1F1F] tracking-tight">
+        <div className="flex items-baseline gap-1.5 mt-1">
+          <span className="text-2xl font-bold text-[#1F1F1F] font-mono">
             {todayDueTasksCount}
           </span>
-          <span className="text-sm text-[#8C8C8C]">项待执行</span>
+          <span className="text-xs text-[#8C8C8C]">项</span>
         </div>
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2.5 flex items-center gap-2">
           {overdueTasksCount > 0 ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-[#F5222D] text-white">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              已超期 {overdueTasksCount} 项
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-[#F5222D] bg-[#FFF1F0] font-medium border border-[#FFA39E]/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5222D]" />
+              超期 {overdueTasksCount}
             </span>
           ) : (
-            <span className="text-xs text-[#52C41A] font-semibold">
-              无超期作业，执行正常
-            </span>
+            <span className="text-xs text-[#52C41A] font-medium">按期进行中</span>
           )}
         </div>
       </div>
 
-      {/* 4. 本月消缺闭环与SLA履约 (责任人工作绩效) */}
+      {/* 4. 本月已闭环 */}
       <div 
         onClick={() => onFilterTickets?.('closed')}
-        className="bg-white rounded-lg p-4 border border-[#E8E8E8] shadow-none hover:border-[#52C41A] transition-all cursor-pointer group"
+        className="bg-white rounded-lg p-3.5 border border-[#E8E8E8] shadow-none hover:border-[#1890FF] transition-all cursor-pointer group"
       >
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-semibold text-[#8C8C8C] flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-[#52C41A]" />
-            本月消缺闭环
+        <div className="flex items-center justify-between text-xs text-[#8C8C8C] mb-1">
+          <span className="flex items-center gap-1.5 font-medium text-[#595959]">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#52C41A]" />
+            本月已闭环
           </span>
-          <span className="text-xs text-[#52C41A] font-semibold group-hover:underline flex items-center">
-            详情 <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-          </span>
+          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-[#1890FF]" />
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-[#1F1F1F] tracking-tight">
+        <div className="flex items-baseline gap-1.5 mt-1">
+          <span className="text-2xl font-bold text-[#1F1F1F] font-mono">
             {myCompletedTicketsCount}
           </span>
-          <span className="text-sm text-[#8C8C8C]">件已归档</span>
+          <span className="text-xs text-[#8C8C8C]">单</span>
         </div>
 
-        <div className="mt-3 flex items-center justify-between text-xs">
-          <span className="text-[#8C8C8C] text-xs font-medium">SLA 履约率:</span>
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-[#389E0D] bg-[#F6FFED] px-2 py-0.5 rounded border border-[#B7EB8F]">
-            <Award className="w-3.5 h-3.5" />
-            {slaComplianceRate}% 优良
-          </span>
+        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-[#595959]">
+          <span className="text-[#8C8C8C]">履约率</span>
+          <span className="font-semibold text-[#52C41A]">{slaComplianceRate}%</span>
         </div>
       </div>
     </div>

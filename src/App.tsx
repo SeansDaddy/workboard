@@ -103,8 +103,7 @@ export default function App() {
   // Handlers for Ticket Actions
   const handleOpenTicketProcess = (ticket: TicketItem) => {
     setSelectedTicket(ticket);
-    setCurrentView('ticket_process');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setDrawerTicket(ticket);
   };
 
   const handleOpenTicketDetail = (ticket: TicketItem) => {
@@ -292,8 +291,7 @@ export default function App() {
     const target = tickets.find((t) => t.id === ticketId);
     if (target) {
       setSelectedTicket(target);
-      setCurrentView('ticket_process');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setDrawerTicket(target);
     } else {
       setToastMessage({
         title: `正在定位关联工单 ${ticketId}...`,
