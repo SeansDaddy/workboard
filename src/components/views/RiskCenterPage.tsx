@@ -19,6 +19,7 @@ interface RiskCenterPageProps {
   risks: RiskItem[];
   regionalTop5: OperationsMetrics['regionalRiskTop5'];
   onReturnToWorkbench: () => void;
+  onOpenRiskAnalysis?: (risk: RiskItem) => void;
   onOpenRiskDetail: (risk: RiskItem) => void;
   onConvertToTicket: (risk: RiskItem) => void;
   onJumpToTicket: (ticketId: string) => void;
@@ -29,6 +30,7 @@ export const RiskCenterPage: React.FC<RiskCenterPageProps> = ({
   risks,
   regionalTop5,
   onReturnToWorkbench,
+  onOpenRiskAnalysis,
   onOpenRiskDetail,
   onConvertToTicket,
   onJumpToTicket,
@@ -78,6 +80,7 @@ export const RiskCenterPage: React.FC<RiskCenterPageProps> = ({
         <RiskModule
           risks={risks}
           regionalTop5={regionalTop5}
+          onOpenRiskAnalysis={onOpenRiskAnalysis}
           onOpenRiskDetail={onOpenRiskDetail}
           onConvertToTicket={onConvertToTicket}
           onJumpToTicket={onJumpToTicket}

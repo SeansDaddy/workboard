@@ -32,6 +32,7 @@ import { RiskDetailView } from './components/views/RiskDetailView';
 import { TaskProcessView } from './components/views/TaskProcessView';
 import { TicketProcessDrawer } from './components/views/TicketProcessDrawer';
 import { TaskProcessDrawer } from './components/views/TaskProcessDrawer';
+import { RiskAnalysisDrawer } from './components/views/RiskAnalysisDrawer';
 import { SubPagePlaceholder } from './components/views/SubPagePlaceholder';
 import { AiDiagnosisPage } from './components/views/AiDiagnosisPage';
 
@@ -46,6 +47,8 @@ export default function App() {
 
   // Navigation & View State
   const [currentView, setCurrentView] = useState<ActiveView>('workbench');
+  const [ticketProcessSourceView, setTicketProcessSourceView] = useState<ActiveView>('workbench');
+  const [riskProcessSourceView, setRiskProcessSourceView] = useState<ActiveView>('workbench');
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
   const [selectedRisk, setSelectedRisk] = useState<RiskItem | null>(null);
   const [selectedTask, setSelectedTask] = useState<RoutineTaskItem | null>(null);
@@ -53,6 +56,7 @@ export default function App() {
   // Modals & Drawers
   const [detailModalTicket, setDetailModalTicket] = useState<TicketItem | null>(null);
   const [drawerTicket, setDrawerTicket] = useState<TicketItem | null>(null);
+  const [drawerRisk, setDrawerRisk] = useState<RiskItem | null>(null);
   const [drawerTask, setDrawerTask] = useState<RoutineTaskItem | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
@@ -101,9 +105,26 @@ export default function App() {
   }, [tasks]);
 
   // Handlers for Ticket Actions
-  const handleOpenTicketProcess = (ticket: TicketItem) => {
+  // 从工作台打开工单处理（抽屉模式）
+  const handleOpenTicketProcessFromWorkbench = (ticket: TicketItem) => {
     setSelectedTicket(ticket);
     setDrawerTicket(ticket);
+  };
+
+  // 从工单中心或通用入口打开单工单深度分析页面（全页模式，支持返回原页面）
+  const handleOpenTicketProcessPageView = (ticket: TicketItem, source: ActiveView = 'page_ticket_center') => {
+    setSelectedTicket(ticket);
+    setTicketProcessSourceView(source);
+    setCurrentView('ticket_process');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenTicketProcess = (ticket: TicketItem) => {
+    if (currentView === 'page_ticket_center') {
+      handleOpenTicketProcessPageView(ticket, 'page_ticket_center');
+    } else {
+      handleOpenTicketProcessFromWorkbench(ticket);
+    }
   };
 
   const handleOpenTicketDetail = (ticket: TicketItem) => {
@@ -136,14 +157,53 @@ export default function App() {
   };
 
   // Handlers for Risk Actions
-  const handleOpenRiskDetail = (risk: RiskItem) => {
+  // 从工作台打开风险分析（抽屉模式）
+  const handleOpenRiskAnalysisFromWorkbench = (risk: RiskItem) => {
     setSelectedRisk(risk);
+    setDrawerRisk(risk);
+  };
+
+  // 从风险中心打开风险深度分析（下钻全屏页面模式，与抽屉保持一致且支持返回风险中心）
+  const handleOpenRiskAnalysisFromRiskCenter = (risk: RiskItem) => {
+    setSelectedRisk(risk);
+    setRiskProcessSourceView('page_risk_center');
     setCurrentView('risk_detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleOpenRiskAnalysis = (risk: RiskItem) => {
+    if (currentView === 'page_risk_center') {
+      handleOpenRiskAnalysisFromRiskCenter(risk);
+    } else {
+      handleOpenRiskAnalysisFromWorkbench(risk);
+    }
+  };
+
+  const handleOpenRiskDetail = (risk: RiskItem) => {
+    setSelectedRisk(risk);
+    setRiskProcessSourceView(currentView === 'page_risk_center' ? 'page_risk_center' : 'workbench');
+    setCurrentView('risk_detail');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleEliminateRisk = (riskId: string, note: string) => {
+    setRisks((prev) =>
+      prev.map((r) => {
+        if (r.id === riskId) {
+          return { ...r, status: '已消除' };
+        }
+        return r;
+      })
+    );
+    setToastMessage({
+      title: `风险 ${riskId} 已标记为「已消除」`,
+      desc: note || '系统已将该风险从待处理队列中移除并记录研判审计日志',
+      type: 'success'
+    });
+  };
+
   // 风险转工单的核心双向联动机制 (4.2 & 附录11)
-  const handleConvertToTicket = (risk: RiskItem) => {
+  const handleConvertToTicket = (risk: RiskItem, customNote?: string) => {
     const newTicketId = `PC-20260825-0${tickets.length + 1}`;
     
     // 1. 创建新工单
@@ -161,8 +221,8 @@ export default function App() {
       slaDeadline: '2026-08-25 18:00',
       status: '待受理',
       deviceCode: risk.stationId + '-Rack-01',
-      description: `由主动运维平台风险分析算法检测生成：${risk.symptomDetail ?? risk.title}`,
-      suggestedAction: `针对${risk.category}特征，请携带检修工具前往现场排查测试。`,
+      description: customNote || `由主动运维平台风险分析算法检测生成：${risk.symptomDetail ?? risk.title}`,
+      suggestedAction: `针对${risk.category}特征，请按标准 SOP 规程前往现场排查测试。`,
       linkedRiskId: risk.id,
       logs: [
         {
@@ -196,10 +256,17 @@ export default function App() {
       type: 'success'
     });
 
-    // If currently in risk detail, update view
+    // If currently in risk detail or drawer, update view
     if (selectedRisk && selectedRisk.id === risk.id) {
       setSelectedRisk({
         ...selectedRisk,
+        status: '已转工单',
+        linkedTicketId: newTicketId
+      });
+    }
+    if (drawerRisk && drawerRisk.id === risk.id) {
+      setDrawerRisk({
+        ...drawerRisk,
         status: '已转工单',
         linkedTicketId: newTicketId
       });
@@ -376,7 +443,8 @@ export default function App() {
           {currentView === 'ticket_process' && selectedTicket && (
             <TicketProcessView
               ticket={selectedTicket}
-              onBack={() => setCurrentView('workbench')}
+              onBack={() => setCurrentView(ticketProcessSourceView)}
+              backButtonLabel={ticketProcessSourceView === 'page_ticket_center' ? '返回工单中心' : '返回工作台'}
               onUpdateStatus={handleUpdateTicketStatus}
               onJumpToRisk={handleJumpToRisk}
             />
@@ -385,8 +453,13 @@ export default function App() {
           {currentView === 'risk_detail' && selectedRisk && (
             <RiskDetailView
               risk={selectedRisk}
-              onBack={() => setCurrentView('workbench')}
+              onBack={() => {
+                setCurrentView(riskProcessSourceView);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              backButtonLabel={riskProcessSourceView === 'page_risk_center' ? '返回风险中心' : '返回工作台'}
               onConvertToTicket={handleConvertToTicket}
+              onEliminateRisk={handleEliminateRisk}
               onJumpToTicket={handleJumpToTicket}
             />
           )}
@@ -406,6 +479,7 @@ export default function App() {
               risks={risks}
               regionalTop5={metrics.regionalRiskTop5}
               onReturnToWorkbench={() => setCurrentView('workbench')}
+              onOpenRiskAnalysis={handleOpenRiskAnalysisFromRiskCenter}
               onOpenRiskDetail={handleOpenRiskDetail}
               onConvertToTicket={handleConvertToTicket}
               onJumpToTicket={handleJumpToTicket}
@@ -503,6 +577,7 @@ export default function App() {
               }}
               onOpenTicketProcess={(ticket) => setDrawerTicket(ticket)}
               onOpenTicketDetail={handleOpenTicketDetail}
+              onOpenRiskAnalysis={handleOpenRiskAnalysis}
               onOpenRiskDetail={handleOpenRiskDetail}
               onConvertToTicket={handleConvertToTicket}
               onOpenTaskProcess={(task) => setDrawerTask(task)}
@@ -519,6 +594,15 @@ export default function App() {
         onClose={() => setDrawerTicket(null)}
         onUpdateStatus={handleUpdateTicketStatus}
         onJumpToRisk={handleJumpToRisk}
+      />
+
+      {/* Risk Analysis Right Drawer (for Workbench quick action: SOP, Similar Cases, AI Diagnosis) */}
+      <RiskAnalysisDrawer
+        risk={drawerRisk}
+        onClose={() => setDrawerRisk(null)}
+        onConvertToTicket={handleConvertToTicket}
+        onEliminateRisk={handleEliminateRisk}
+        onJumpToTicket={handleJumpToTicket}
       />
 
       {/* Task Process Right Drawer (for Workbench quick action) */}

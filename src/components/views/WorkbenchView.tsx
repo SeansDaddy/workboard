@@ -35,6 +35,7 @@ interface WorkbenchViewProps {
   onNavigate: (view: ActiveView) => void;
   onOpenTicketProcess: (ticket: TicketItem) => void;
   onOpenTicketDetail: (ticket: TicketItem) => void;
+  onOpenRiskAnalysis: (risk: RiskItem) => void;
   onOpenRiskDetail: (risk: RiskItem) => void;
   onConvertToTicket: (risk: RiskItem) => void;
   onOpenTaskProcess: (task: RoutineTaskItem) => void;
@@ -50,6 +51,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   onNavigate,
   onOpenTicketProcess,
   onOpenTicketDetail,
+  onOpenRiskAnalysis,
   onOpenRiskDetail,
   onConvertToTicket,
   onOpenTaskProcess,
@@ -287,23 +289,17 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
                         onClick={() => onOpenRiskDetail(r)}
                         className="px-2 py-1 text-xs text-[#595959] hover:text-[#1890FF] rounded transition-colors cursor-pointer"
                       >
-                        分析
+                        详情
                       </button>
 
-                      {r.status === '待处理' ? (
-                        <button
-                          type="button"
-                          onClick={() => onConvertToTicket(r)}
-                          className="px-2.5 py-1 text-xs font-medium bg-[#1890FF] hover:bg-[#40A9FF] text-white rounded transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <PlusCircle className="w-3 h-3" />
-                          <span>转工单</span>
-                        </button>
-                      ) : (
-                        <span className="text-xs text-[#52C41A] bg-[#F6FFED] px-2 py-0.5 rounded border border-[#B7EB8F]">
-                          已转工单
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => onOpenRiskAnalysis(r)}
+                        className="px-2.5 py-1 text-xs font-medium bg-[#FA8C16] text-white hover:bg-[#FFA940] rounded transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                      >
+                        <span>去分析</span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 );

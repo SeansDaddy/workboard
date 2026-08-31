@@ -31,6 +31,7 @@ import {
 interface RiskModuleProps {
   risks: RiskItem[];
   regionalTop5: OperationsMetrics['regionalRiskTop5'];
+  onOpenRiskAnalysis?: (risk: RiskItem) => void;
   onOpenRiskDetail: (risk: RiskItem) => void;
   onConvertToTicket: (risk: RiskItem) => void;
   onJumpToTicket: (ticketId: string) => void;
@@ -40,6 +41,7 @@ interface RiskModuleProps {
 export const RiskModule: React.FC<RiskModuleProps> = ({
   risks,
   regionalTop5,
+  onOpenRiskAnalysis,
   onOpenRiskDetail,
   onConvertToTicket,
   onJumpToTicket,
@@ -351,7 +353,17 @@ export const RiskModule: React.FC<RiskModuleProps> = ({
                             onClick={() => onOpenRiskDetail(item)}
                             className="px-2 py-1 text-[11px] text-[#595959] hover:text-[#1890FF] hover:bg-[#F5F5F5] rounded transition-colors cursor-pointer"
                           >
-                            分析详情
+                            详情
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onOpenRiskAnalysis ? onOpenRiskAnalysis(item) : onOpenRiskDetail(item)}
+                            className="px-2.5 py-1 text-[11px] font-medium bg-[#FA8C16] text-white hover:bg-[#FFA940] rounded transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                            title="进入风险深度分析（SOP/相似案例/AI机理诊断）"
+                          >
+                            <span>去分析</span>
+                            <ArrowUpRight className="w-3 h-3" />
                           </button>
 
                           {/* 转工单按钮 */}
@@ -359,7 +371,7 @@ export const RiskModule: React.FC<RiskModuleProps> = ({
                             <button
                               type="button"
                               onClick={() => onConvertToTicket(item)}
-                              className="px-2 py-1 text-[11px] font-medium bg-[#FA8C16] hover:bg-[#FFA940] text-white rounded transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-2 py-1 text-[11px] font-medium text-[#FA8C16] bg-[#FFF7E6] hover:bg-[#FFE7BA] rounded border border-[#FFD591] transition-colors flex items-center gap-1 cursor-pointer"
                               title="将主动预测风险生成 pcare 工单派发"
                             >
                               <PlusCircle className="w-3 h-3" />
@@ -435,6 +447,14 @@ export const RiskModule: React.FC<RiskModuleProps> = ({
                               </div>
 
                               <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#FFE58F]">
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenRiskAnalysis ? onOpenRiskAnalysis(item) : onOpenRiskDetail(item)}
+                                  className="px-2.5 py-1 bg-white border border-[#FA8C16] text-[#FA8C16] hover:bg-[#FFF7E6] rounded text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>去深度分析</span>
+                                  <ArrowUpRight className="w-3 h-3" />
+                                </button>
                                 {item.status === '待处理' && (
                                   <button
                                     type="button"
