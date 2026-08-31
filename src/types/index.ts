@@ -149,6 +149,49 @@ export interface OperationsMetrics {
   }>;
 }
 
+// 报告模板定义
+export interface ReportTemplate {
+  id: string; // 模板唯一ID
+  name: string; // 模板名称
+  code: string; // 模板代码
+  category: '运营周报' | '月度白皮书' | '季度评估' | '单站深度体检' | '安全合规专项';
+  description: string; // 模板简介
+  tag: '推荐' | '高频' | '管理层专报' | '技术专刊' | '安全专项';
+  estimatedTime: string; // 预估生成耗时
+  targetAudience: string; // 适用对象
+  sections: string[]; // 包含的核心章节
+  presetPeriod: 'week' | 'month' | 'quarter' | 'custom';
+  defaultTitleTemplate: string; // 默认标题模板
+  coverColor: string; // 封面主色调
+}
+
+// 报告生成任务定义
+export interface ReportGenerationTask {
+  id: string; // 任务编号，如 RPT-TASK-20260830-01
+  templateId: string; // 使用的模板 ID
+  templateName: string; // 模板名称
+  reportTitle: string; // 生成的报告标题
+  periodType: 'week' | 'month' | 'quarter' | 'custom';
+  dateRange: string; // 统计周期，如 2026-08-24 ~ 2026-08-30
+  scope: string; // 统计范围，如 华东一区 (484座电站)
+  creator: string; // 创建人
+  createdAt: string; // 创建时间
+  completedAt?: string; // 完成时间
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number; // 进度百分比 0-100
+  stepLog: string; // 当前执行阶段日志
+  fileFormat: 'HTML' | 'PDF' | 'EXCEL';
+  fileSize?: string; // 文件大小，如 1.4 MB
+  htmlContent?: string; // 生成的 HTML 完整源码
+  config?: {
+    includeAiInsights: boolean; // 是否包含 AI 诊断分析与建议
+    includeDischargeDetails: boolean; // 包含充放电效益明细
+    includeSlaTickets: boolean; // 包含 SLA 工单履约分析
+    includeRiskMatrix: boolean; // 包含时序机理预警特征矩阵
+    includeRoutineTasks: boolean; // 包含例行作业整改清单
+  };
+}
+
 // 路由与页面状态定义
 export type ActiveView = 
   | 'workbench' 

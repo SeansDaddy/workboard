@@ -519,6 +519,9 @@ export default function App() {
           {currentView === 'page_report_center' && (
             <ReportCenterPage
               metrics={metrics}
+              tickets={tickets}
+              risks={risks}
+              tasks={tasks}
               onReturnToWorkbench={() => setCurrentView('workbench')}
               onExportReport={(format) => {
                 setToastMessage({
