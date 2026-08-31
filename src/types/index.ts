@@ -190,8 +190,25 @@ export interface ReportTemplate {
 }
 
 // 报告生成任务定义
+export interface ReportScheduleConfig {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'custom_cron'; // 调度周期
+  executionTime: string; // 执行时刻，如 '08:00'
+  dayOfWeek?: number; // 1~7 (周一到周日)
+  dayOfMonth?: number; // 1~31 (每月几号)
+  cronExpression?: string; // 如 '0 8 * * 1'
+  cronSummary: string; // 易读描述，如 '每周一 08:00 自动执行'
+  dataWindow: 'previous_cycle' | 'recent_24h' | 'recent_7d' | 'recent_30d' | 'current_month_to_date'; // 数据回溯范围
+  isActive: boolean; // 调度是否启用中
+  nextExecutionTime?: string; // 下次调度时间
+  lastExecutionTime?: string; // 上次执行时间
+  executionCount?: number; // 累计触发次数
+  notifyChannels?: ('email' | 'dingtalk' | 'wecom' | 'system')[]; // 自动推送通道
+  recipients?: string; // 接收人 / 群组
+}
+
 export interface ReportGenerationTask {
   id: string; // 任务编号，如 RPT-TASK-20260830-01
+  taskType: 'once' | 'periodic'; // 任务类型：一次性任务 | 周期性任务
   templateId: string; // 使用的模板 ID
   templateName: string; // 模板名称
   reportTitle: string; // 生成的报告标题
@@ -209,6 +226,7 @@ export interface ReportGenerationTask {
   htmlContent?: string; // 生成的 HTML 完整源码
   associatedSkillId?: string;
   associatedSkillName?: string;
+  scheduleConfig?: ReportScheduleConfig; // 周期性任务特有配置
   skillMeta?: {
     skillId: string;
     skillName: string;

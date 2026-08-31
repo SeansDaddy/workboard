@@ -658,16 +658,14 @@ export const AiDiagnosisPage: React.FC<AiDiagnosisPageProps> = ({
                       {/* 操作入口 */}
                       <td className="p-3 pr-3 text-right whitespace-nowrap">
                         {t.hasReport ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setActiveReportTask(t)}
-                              className="px-2.5 py-1 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-medium cursor-pointer transition-colors shadow-xs flex items-center gap-1"
-                            >
-                              <FileText className="w-3 h-3" />
-                              <span>查看诊断报告</span>
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveReportTask(t)}
+                            className="px-3 py-1 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-medium cursor-pointer transition-colors shadow-xs flex items-center gap-1.5 ml-auto"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>查看诊断报告</span>
+                          </button>
                         ) : (
                           <span className="text-[#8C8C8C] text-[11px]">分析中...</span>
                         )}
@@ -925,7 +923,7 @@ export const AiDiagnosisPage: React.FC<AiDiagnosisPageProps> = ({
 
       </div>
 
-      {/* 诊断报告样例展示模态框 (AI Diagnostic Report Modal) */}
+      {/* 诊断报告展示模态框 (AI Diagnostic Report Modal with Integrated AI Deep Interpretation) */}
       {activeReportTask && (
         <AiDiagnosisReportModal
           task={activeReportTask}
@@ -942,7 +940,7 @@ export const AiDiagnosisPage: React.FC<AiDiagnosisPageProps> = ({
 };
 
 // =========================================================================
-// 诊断报告详情与样例展示模态组件 (AI Diagnosis Sample Report Modal)
+// 诊断报告详情与内置 AI 深度解读模态组件 (AI Diagnosis Report Modal)
 // =========================================================================
 
 interface AiDiagnosisReportModalProps {
@@ -957,6 +955,37 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
   onConvertToTicket
 }) => {
   const [activeChartTab, setActiveChartTab] = useState<'temp' | 'volt' | 'dqdv'>('temp');
+  
+  // 内置 AI 深度解读视角: 'expert' (机理专家) | 'field' (一线消缺) | 'executive' (站长资产)
+  const [perspective, setPerspective] = useState<'expert' | 'field' | 'executive'>('expert');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [aiData, setAiData] = useState<any>(null);
+
+  // 动态加载对应视角的 AI 深度解读
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAiAnalysis = async () => {
+      setLoadingAi(true);
+      try {
+        const res = await fetch('/api/ai/diagnose-interpret', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task, perspective })
+        });
+        const json = await res.json();
+        if (isMounted && json.success && json.data) {
+          setAiData(json.data);
+        }
+      } catch (err) {
+        console.error('Failed to load integrated AI interpretation:', err);
+      } finally {
+        if (isMounted) setLoadingAi(false);
+      }
+    };
+
+    fetchAiAnalysis();
+    return () => { isMounted = false; };
+  }, [task.id, perspective]);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
@@ -980,7 +1009,7 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
                   AI机理诊断已闭环
                 </span>
                 <span className="text-xs font-bold text-[#F5222D] bg-[#FFF1F0] px-2 py-0.5 rounded border border-[#FFA39E]">
-                  高风险评级 (92分)
+                  高风险评级 ({task.riskScore}分)
                 </span>
               </div>
               <h2 className="text-base font-bold text-[#1F1F1F] mt-1">
@@ -1197,7 +1226,6 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
 
                   {/* SVG 曲线示意 */}
                   <div className="h-44 w-full bg-white rounded border border-[#E8E8E8] relative flex items-end px-6 pb-6 pt-4">
-                    {/* Y轴刻度 */}
                     <div className="absolute left-2 top-2 bottom-6 flex flex-col justify-between text-[9px] text-[#8C8C8C] font-mono">
                       <span>45℃</span>
                       <span>40℃</span>
@@ -1206,7 +1234,6 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
                       <span>25℃</span>
                     </div>
 
-                    {/* 网格参考虚线 */}
                     <div className="absolute left-8 right-4 top-2 bottom-6 flex flex-col justify-between pointer-events-none">
                       <div className="border-b border-[#F0F0F0] w-full" />
                       <div className="border-b border-[#F0F0F0] w-full" />
@@ -1215,27 +1242,12 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
                       <div className="border-b border-[#F0F0F0] w-full" />
                     </div>
 
-                    {/* SVG 线条 */}
                     <svg className="w-full h-full overflow-visible" viewBox="0 0 500 120" preserveAspectRatio="none">
-                      {/* 正常参考曲线 */}
-                      <path
-                        d="M 0 100 Q 150 90, 300 78 T 500 68"
-                        fill="none"
-                        stroke="#1890FF"
-                        strokeWidth="2.5"
-                      />
-                      {/* 异常极柱温升曲线 */}
-                      <path
-                        d="M 0 100 Q 120 70, 250 35 T 500 10"
-                        fill="none"
-                        stroke="#F5222D"
-                        strokeWidth="3"
-                      />
-                      {/* 焦耳热超温标记点 */}
+                      <path d="M 0 100 Q 150 90, 300 78 T 500 68" fill="none" stroke="#1890FF" strokeWidth="2.5" />
+                      <path d="M 0 100 Q 120 70, 250 35 T 500 10" fill="none" stroke="#F5222D" strokeWidth="3" />
                       <circle cx="500" cy="10" r="4" fill="#F5222D" />
                     </svg>
 
-                    {/* 标注提示框 */}
                     <div className="absolute right-8 top-4 bg-[#FFF1F0] border border-[#FFA39E] p-1.5 rounded text-[10px] text-[#CF1322] font-semibold">
                       焦耳热集聚区: ΔT 持续扩大至 9.4℃ (力矩松动典型特征)
                     </div>
@@ -1309,12 +1321,132 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
             </div>
           </div>
 
-          {/* 五、推荐现场标准化排查与消缺 SOP */}
+          {/* 五、AI 专家深度解读报告专栏 (AI Deep Mechanism Interpretation) */}
+          <div className="bg-gradient-to-br from-purple-50/80 via-white to-indigo-50/50 rounded-xl border-2 border-[#722ED1]/40 p-5 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-[#722ED1] to-[#531DAB] text-white flex items-center justify-center shadow-xs">
+                  <BrainCircuit className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-[#1F1F1F]">
+                      4. AI 专家深度解读报告 (AI Mechanism Interpretation)
+                    </h3>
+                    <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                      大模型多维机理反演
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8C8C8C] mt-0.5">
+                    基于 484 座储能电站时序基线与电化学微分模型生成的深度剖析
+                  </p>
+                </div>
+              </div>
+
+              {/* 视角切换器 */}
+              <div className="flex items-center gap-1 bg-[#F0F2F5] p-1 rounded-lg border border-[#E4E6EB]">
+                <button
+                  type="button"
+                  onClick={() => setPerspective('expert')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                    perspective === 'expert'
+                      ? 'bg-[#722ED1] text-white shadow-xs'
+                      : 'text-[#595959] hover:text-[#1F1F1F]'
+                  }`}
+                >
+                  🔬 机理专家视角
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPerspective('field')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                    perspective === 'field'
+                      ? 'bg-[#1890FF] text-white shadow-xs'
+                      : 'text-[#595959] hover:text-[#1F1F1F]'
+                  }`}
+                >
+                  ⚡ 一线消缺视角
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPerspective('executive')}
+                  className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                    perspective === 'executive'
+                      ? 'bg-[#FA8C16] text-white shadow-xs'
+                      : 'text-[#595959] hover:text-[#1F1F1F]'
+                  }`}
+                >
+                  📊 资产运营视角
+                </button>
+              </div>
+            </div>
+
+            {loadingAi ? (
+              <div className="py-8 text-center space-y-2">
+                <RefreshCw className="w-6 h-6 text-[#722ED1] animate-spin mx-auto" />
+                <p className="text-xs text-[#8C8C8C]">正在生成对应视角的 AI 深度解读...</p>
+              </div>
+            ) : aiData ? (
+              <div className="space-y-4">
+                {/* 核心研判综述 */}
+                <div className="p-3.5 bg-white rounded-lg border border-purple-200 shadow-2xs space-y-1.5">
+                  <span className="text-[11px] font-bold text-[#722ED1] flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    【AI 核心研判结论】:
+                  </span>
+                  <p className="text-xs text-[#262626] font-medium leading-relaxed">
+                    {aiData.executiveSummary}
+                  </p>
+                </div>
+
+                {/* 机理与证据反演两栏网格 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div className="p-3 bg-white rounded-lg border border-[#E8E8E8] space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#1F1F1F] flex items-center gap-1">
+                      <Layers className="w-3.5 h-3.5 text-[#722ED1]" />
+                      底层物理电化学机理反演
+                    </span>
+                    <p className="text-[11px] text-[#595959] leading-relaxed">
+                      {aiData.mechanismDeepDive?.physicsPrinciple}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-[#F6FFED] rounded-lg border border-[#B7EB8F] space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#237804] flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#52C41A]" />
+                      假性故障排除证据链
+                    </span>
+                    <p className="text-[11px] text-[#237804] leading-relaxed">
+                      {aiData.mechanismDeepDive?.exclusionReasoning}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 次生风险与资产影响 */}
+                <div className="p-3 bg-white rounded-lg border border-[#E8E8E8] grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <span className="text-[11px] font-bold text-[#F5222D] block mb-0.5">直接危害</span>
+                    <p className="text-[11px] text-[#A8071A] leading-relaxed">{aiData.riskImpactAnalysis?.immediateRisk}</p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-[#FA8C16] block mb-0.5">潜在次生灾害</span>
+                    <p className="text-[11px] text-[#AD4E00] leading-relaxed">{aiData.riskImpactAnalysis?.secondaryHazards}</p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-[#1890FF] block mb-0.5">经济与容量影响</span>
+                    <p className="text-[11px] text-[#0958D9] leading-relaxed">{aiData.riskImpactAnalysis?.businessImpact}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* 六、推荐现场标准化排查与消缺 SOP */}
           <div className="bg-white rounded-lg border border-[#E8E8E8] p-4 space-y-3">
             <div className="flex items-center gap-2 pb-2 border-b border-[#F0F0F0]">
               <Wrench className="w-4 h-4 text-[#52C41A]" />
               <h3 className="font-bold text-xs text-[#1F1F1F]">
-                4. 推荐现场消缺方案与作业 SOP 指引 (Actionable Remediation Plan)
+                5. 推荐现场消缺方案与作业 SOP 指引 (Actionable Remediation Plan)
               </h3>
             </div>
 
@@ -1369,7 +1501,7 @@ export const AiDiagnosisReportModal: React.FC<AiDiagnosisReportModalProps> = ({
         <div className="px-6 py-3.5 bg-[#FAFAFA] border-t border-[#E8E8E8] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-[#8C8C8C] flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#722ED1]" />
-            <span>AI 诊断报告已通过机理仿真校核，支持直接派发执行消缺</span>
+            <span>AI 诊断报告已内置机理深度解读与仿真校核，支持直接派发消缺</span>
           </div>
 
           <div className="flex items-center gap-2.5">

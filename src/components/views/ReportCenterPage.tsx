@@ -27,7 +27,14 @@ import {
   Calendar,
   Check,
   ChevronRight,
-  Database
+  Database,
+  Repeat,
+  Bell,
+  Power,
+  PlayCircle,
+  PauseCircle,
+  RotateCcw,
+  Timer
 } from 'lucide-react';
 import { 
   ReportTemplate, 
@@ -36,7 +43,8 @@ import {
   TicketItem, 
   RiskItem, 
   RoutineTaskItem,
-  OperationSkill
+  OperationSkill,
+  ReportScheduleConfig
 } from '../../types';
 import { REPORT_TEMPLATES, INITIAL_REPORT_TASKS, DEFAULT_SAMPLE_HTML_TEMPLATE } from '../../mock/reportData';
 import { INITIAL_OPERATION_SKILLS } from '../../mock/skillData';
@@ -79,6 +87,7 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
   const [skillSearchKeyword, setSkillSearchKeyword] = useState<string>('');
   const [selectedSkillCategory, setSelectedSkillCategory] = useState<string>('all');
   const [taskSearchKeyword, setTaskSearchKeyword] = useState<string>('');
+  const [taskFilterType, setTaskFilterType] = useState<'all' | 'once' | 'periodic' | 'processing'>('all');
 
   // 任务管理列表
   const [reportTasks, setReportTasks] = useState<ReportGenerationTask[]>(() => {
@@ -237,8 +246,9 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
     showToast('模板创建成功！', `已将「${newTemplate.name}」添加至模板库`, 'success');
   };
 
-  // 执行任务创建与异步生成
+  // 执行任务创建与异步生成 (支持一次性即时任务与周期性调度任务)
   const handleExecuteCreateTask = (taskPayload: {
+    taskType: 'once' | 'periodic';
     title: string;
     template: ReportTemplate;
     periodType: 'week' | 'month' | 'quarter' | 'custom';
@@ -252,11 +262,18 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
     includeRiskMatrix: boolean;
     includeRoutineTasks: boolean;
     associatedSkill?: OperationSkill;
+    scheduleConfig?: ReportScheduleConfig;
+    generateInitialImmediately?: boolean;
   }) => {
-    const newTaskId = `TASK-${Date.now().toString().slice(-6)}`;
+    const isPeriodic = taskPayload.taskType === 'periodic';
+    const newTaskId = isPeriodic 
+      ? `RPT-SCHED-${Date.now().toString().slice(-6)}`
+      : `RPT-ONCE-${Date.now().toString().slice(-6)}`;
     
-    // 生成报告 HTML
-    const generatedHtml = generateReportHtml({
+    // 生成报告 HTML (一次性任务或设置了立即生成首份报告的周期任务)
+    const shouldGenerateImmediately = taskPayload.taskType === 'once' || taskPayload.generateInitialImmediately !== false;
+
+    const generatedHtml = shouldGenerateImmediately ? generateReportHtml({
       reportTitle: taskPayload.title,
       templateCategory: taskPayload.template.name,
       templateCode: taskPayload.template.code,
@@ -270,10 +287,11 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
       includeAiInsights: taskPayload.includeAiInsights,
       customHtmlTemplate: taskPayload.template.htmlTemplate,
       skillData: taskPayload.associatedSkill
-    });
+    }) : undefined;
 
     const newTask: ReportGenerationTask = {
       id: newTaskId,
+      taskType: taskPayload.taskType,
       reportTitle: taskPayload.title,
       templateId: taskPayload.template.id,
       templateName: taskPayload.template.name,
@@ -281,16 +299,21 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
       dateRange: taskPayload.dateRange,
       scope: taskPayload.scope,
       creator: taskPayload.creator,
-      status: 'processing',
-      progress: 25,
-      createdAt: '2026-08-30 14:15:20',
+      status: shouldGenerateImmediately ? 'processing' : 'completed',
+      progress: shouldGenerateImmediately ? 25 : 100,
+      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
       fileFormat: 'HTML',
-      stepLog: taskPayload.associatedSkill 
-        ? `正在挂载 Skill [${taskPayload.associatedSkill.name}] 机理并拉取 484 座电站时序数据...`
-        : '正在拉取 484 座电站全域时序遥测数据并排版...',
+      stepLog: isPeriodic
+        ? (shouldGenerateImmediately 
+            ? `周期任务已保存并注册调度器，正在执行第 1 次首份样本报告排版...`
+            : `周期任务已就绪，已注册至分布式调度引擎 (${taskPayload.scheduleConfig?.cronSummary || '定时巡检'})`)
+        : (taskPayload.associatedSkill 
+            ? `正在挂载 Skill [${taskPayload.associatedSkill.name}] 机理并拉取 484 座电站时序数据...`
+            : '正在拉取 484 座电站全域时序遥测数据并排版...'),
       htmlContent: generatedHtml,
       associatedSkillId: taskPayload.associatedSkill?.id,
       associatedSkillName: taskPayload.associatedSkill?.name,
+      scheduleConfig: taskPayload.scheduleConfig,
       config: {
         includeAiInsights: taskPayload.includeAiInsights,
         includeDischargeDetails: taskPayload.includeDischargeDetails,
@@ -302,19 +325,115 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
 
     setReportTasks(prev => [newTask, ...prev]);
     setActiveTab('tasks');
-    showToast('报告生成任务已创建', `任务编号: ${newTaskId}，正在后台流水线排版中`, 'info');
 
-    // 模拟后台流水线状态流转
+    if (isPeriodic) {
+      showToast('周期巡检任务已创建并启动', `任务编号: ${newTaskId} · ${taskPayload.scheduleConfig?.cronSummary}`, 'success');
+    } else {
+      showToast('报告生成任务已创建', `任务编号: ${newTaskId}，正在后台流水线排版中`, 'info');
+    }
+
+    if (shouldGenerateImmediately) {
+      // 模拟后台流水线状态流转
+      setTimeout(() => {
+        setReportTasks(prev =>
+          prev.map(t => {
+            if (t.id === newTaskId) {
+              return {
+                ...t,
+                progress: 68,
+                stepLog: isPeriodic
+                  ? '已完成全域数据校验，正在向协同通道发送预览就绪通知...'
+                  : (taskPayload.associatedSkill
+                      ? '已匹配 3 项关键特征规则与 38 项指标，正在渲染矢量 HTML 报告...'
+                      : '时序数据与指标研判已就绪，正在渲染 HTML 图表组件...')
+              };
+            }
+            return t;
+          })
+        );
+      }, 1000);
+
+      setTimeout(() => {
+        setReportTasks(prev =>
+          prev.map(t => {
+            if (t.id === newTaskId) {
+              return {
+                ...t,
+                status: 'completed',
+                progress: 100,
+                completedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+                fileSize: '1.65 MB',
+                stepLog: isPeriodic
+                  ? `首份样本报告已生成归档，调度状态为【运行中】(${taskPayload.scheduleConfig?.cronSummary})`
+                  : '报告生成成功，已封装为独立 HTML 交付件'
+              };
+            }
+            return t;
+          })
+        );
+        showToast('报告生成完成！', `任务 ${newTaskId} 已就绪，可随时在线预览或执行下载`, 'success');
+      }, 2200);
+    }
+  };
+
+  // 切换周期性任务的启用/暂停调度状态
+  const handleToggleTaskActive = (taskId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setReportTasks(prev =>
+      prev.map(t => {
+        if (t.id === taskId && t.scheduleConfig) {
+          const newActive = !t.scheduleConfig.isActive;
+          const nextTime = newActive ? '2026-08-31 08:00:00' : '已挂起 (暂停中)';
+          showToast(
+            newActive ? '已恢复周期调度' : '已暂停周期调度',
+            `任务 ${taskId} 调度状态已切换为: ${newActive ? '启用中' : '暂停中'}`,
+            newActive ? 'success' : 'info'
+          );
+          return {
+            ...t,
+            scheduleConfig: {
+              ...t.scheduleConfig,
+              isActive: newActive,
+              nextExecutionTime: nextTime
+            },
+            stepLog: newActive 
+              ? `调度已恢复运行 (${t.scheduleConfig.cronSummary})`
+              : '调度已由操作人手动挂起暂停'
+          };
+        }
+        return t;
+      })
+    );
+  };
+
+  // 手动即时触发一次周期性任务生成
+  const handleTriggerPeriodicTaskRun = (task: ReportGenerationTask, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    showToast('正在立即执行生成...', `正在为周期任务「${task.reportTitle}」拉取最新时序数据`, 'info');
+    
+    // 更新为运算中
+    setReportTasks(prev =>
+      prev.map(t => {
+        if (t.id === task.id) {
+          return {
+            ...t,
+            status: 'processing',
+            progress: 30,
+            stepLog: '收到手动立即触发指令，正在实时回溯全域电站遥测数据...'
+          };
+        }
+        return t;
+      })
+    );
+
     setTimeout(() => {
       setReportTasks(prev =>
         prev.map(t => {
-          if (t.id === newTaskId) {
+          if (t.id === task.id) {
             return {
               ...t,
-              progress: 65,
-              stepLog: taskPayload.associatedSkill
-                ? '已匹配 3 项关键特征规则与 38 项指标，正在渲染矢量 HTML 报告...'
-                : '时序数据与指标研判已就绪，正在渲染 HTML 图表组件...'
+              progress: 75,
+              stepLog: '时序分析与多维机理模型推演完成，正在重新渲染 HTML 报告...'
             };
           }
           return t;
@@ -323,23 +442,50 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
     }, 1000);
 
     setTimeout(() => {
+      const regeneratedHtml = generateReportHtml({
+        reportTitle: task.reportTitle,
+        templateCategory: task.templateName,
+        templateCode: 'TPL-AUTO-RUN',
+        scope: task.scope,
+        dateRange: task.dateRange,
+        creator: task.creator,
+        metrics,
+        tickets,
+        risks,
+        tasks,
+        includeAiInsights: task.config?.includeAiInsights ?? true
+      });
+
       setReportTasks(prev =>
         prev.map(t => {
-          if (t.id === newTaskId) {
+          if (t.id === task.id) {
+            const currentCount = t.scheduleConfig?.executionCount || 1;
             return {
               ...t,
               status: 'completed',
               progress: 100,
-              completedAt: '2026-08-30 14:15:23',
-              fileSize: '1.6 MB',
-              stepLog: '报告生成成功，已封装为独立 HTML 交付件'
+              completedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+              htmlContent: regeneratedHtml,
+              stepLog: `手动触发生成完成 (累计触发 ${currentCount + 1} 次)，已更新最新 HTML 交付件`,
+              scheduleConfig: t.scheduleConfig ? {
+                ...t.scheduleConfig,
+                executionCount: currentCount + 1,
+                lastExecutionTime: new Date().toISOString().replace('T', ' ').slice(0, 19)
+              } : undefined
             };
           }
           return t;
         })
       );
-      showToast('报告生成完成！', `任务 ${newTaskId} 已就绪，可随时在线预览或执行下载`, 'success');
+      showToast('手动触发生成成功！', `已刷新生成最新报告交付件，可预览或下载`, 'success');
     }, 2200);
+  };
+
+  // 删除任务
+  const handleDeleteTask = (taskId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setReportTasks(prev => prev.filter(t => t.id !== taskId));
+    showToast('任务已删除', `已移除任务记录 ${taskId}`, 'info');
   };
 
   // 下载任务报告
@@ -381,10 +527,17 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
 
   // 过滤后的任务
   const filteredTasks = reportTasks.filter(t => {
+    // 类型过滤
+    if (taskFilterType === 'once' && t.taskType !== 'once') return false;
+    if (taskFilterType === 'periodic' && t.taskType !== 'periodic') return false;
+    if (taskFilterType === 'processing' && t.status !== 'processing') return false;
+
+    // 关键词过滤
     return !taskSearchKeyword.trim() || 
       t.reportTitle.toLowerCase().includes(taskSearchKeyword.toLowerCase()) ||
       t.id.toLowerCase().includes(taskSearchKeyword.toLowerCase()) ||
-      t.templateName.toLowerCase().includes(taskSearchKeyword.toLowerCase());
+      t.templateName.toLowerCase().includes(taskSearchKeyword.toLowerCase()) ||
+      t.creator.toLowerCase().includes(taskSearchKeyword.toLowerCase());
   });
 
   return (
@@ -831,156 +984,403 @@ export const ReportCenterPage: React.FC<ReportCenterPageProps> = ({
 
         {/* ===================== TAB 3: 报告生成任务管理 ===================== */}
         {activeTab === 'tasks' && (
-          <div className="space-y-6 w-full">
-            {/* 任务顶栏 */}
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={taskSearchKeyword}
-                  onChange={e => setTaskSearchKeyword(e.target.value)}
-                  placeholder="搜索任务编号、报告标题、模板名称..."
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
+          <div className="space-y-5 w-full">
+            {/* 顶部任务统计指示卡 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">全部报告任务</div>
+                  <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">{reportTasks.length}</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">覆盖 484 座储能电站资产</div>
+                </div>
+                <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setSelectedTemplateForTask(templates[0]);
-                  setSelectedSkillForTask(null);
-                  setShowCreateTaskModal(true);
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                创建报告生成任务
-              </button>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5" />
+                    一次性即时任务
+                  </div>
+                  <div className="text-2xl font-bold text-blue-900 mt-1 font-mono">
+                    {reportTasks.filter(t => t.taskType === 'once').length}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">静态时间跨度 · 即时运算交付</div>
+                </div>
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Zap className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider flex items-center gap-1">
+                    <Repeat className="w-3.5 h-3.5" />
+                    周期性调度巡检
+                  </div>
+                  <div className="text-2xl font-bold text-purple-900 mt-1 font-mono flex items-baseline gap-2">
+                    {reportTasks.filter(t => t.taskType === 'periodic').length}
+                    <span className="text-xs font-normal text-slate-400">
+                      ({reportTasks.filter(t => t.taskType === 'periodic' && t.scheduleConfig?.isActive).length} 启用中)
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">日/周/月/季定时巡检 · 自动分发</div>
+                </div>
+                <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <Repeat className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    正在运算 / 排队
+                  </div>
+                  <div className="text-2xl font-bold text-amber-900 mt-1 font-mono">
+                    {reportTasks.filter(t => t.status === 'processing').length}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">后台流水线排版中</div>
+                </div>
+                <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <RefreshCw className={`w-5 h-5 ${reportTasks.filter(t => t.status === 'processing').length > 0 ? 'animate-spin' : ''}`} />
+                </div>
+              </div>
             </div>
 
-            {/* 任务列表 */}
+            {/* 任务顶栏：过滤标签与搜索与新建 */}
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <div className="flex p-1 bg-slate-100 rounded-lg border border-slate-200/80">
+                  <button
+                    onClick={() => setTaskFilterType('all')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      taskFilterType === 'all'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    全部任务 ({reportTasks.length})
+                  </button>
+                  <button
+                    onClick={() => setTaskFilterType('once')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      taskFilterType === 'once'
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-blue-600" />
+                    ⚡ 一次性任务 ({reportTasks.filter(t => t.taskType === 'once').length})
+                  </button>
+                  <button
+                    onClick={() => setTaskFilterType('periodic')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      taskFilterType === 'periodic'
+                        ? 'bg-white text-purple-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Repeat className="w-3.5 h-3.5 text-purple-600" />
+                    🔄 周期调度 ({reportTasks.filter(t => t.taskType === 'periodic').length})
+                  </button>
+                  <button
+                    onClick={() => setTaskFilterType('processing')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      taskFilterType === 'processing'
+                        ? 'bg-white text-amber-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+                    运算中 ({reportTasks.filter(t => t.status === 'processing').length})
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 flex-1 justify-end">
+                <div className="relative w-full max-w-xs">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={taskSearchKeyword}
+                    onChange={e => setTaskSearchKeyword(e.target.value)}
+                    placeholder="搜索任务编号、标题、责任人..."
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedTemplateForTask(templates[0]);
+                    setSelectedSkillForTask(null);
+                    setShowCreateTaskModal(true);
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  创建报告生成任务
+                </button>
+              </div>
+            </div>
+
+            {/* 任务列表表格 */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="px-5 py-3.5">报告任务 / 交付件标题</th>
+                      <th className="px-5 py-3.5">任务类型 / 报告交付件标题</th>
                       <th className="px-4 py-3.5">基础模板 / 驱动 Skill</th>
-                      <th className="px-4 py-3.5">周期 & 范围</th>
-                      <th className="px-4 py-3.5">责任人</th>
-                      <th className="px-4 py-3.5">生成状态 / 运算进度</th>
-                      <th className="px-4 py-3.5">交付件格式</th>
+                      <th className="px-4 py-3.5">调度规则 / 周期范围</th>
+                      <th className="px-4 py-3.5">责任人 / 接收群</th>
+                      <th className="px-4 py-3.5">执行状态 / 进度</th>
+                      <th className="px-4 py-3.5">格式 / 大小</th>
                       <th className="px-5 py-3.5 text-right">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredTasks.map(task => (
-                      <tr key={task.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="font-bold text-slate-900 hover:text-blue-600 transition-colors">
-                                {task.reportTitle}
-                              </div>
-                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                                任务ID: {task.id} · 创建于 {task.createdAt}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <span className="font-medium text-slate-800 block">
-                            {task.templateName}
-                          </span>
-                          {task.associatedSkillName && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mt-1 inline-flex items-center gap-1">
-                              <Zap className="w-2.5 h-2.5" />
-                              {task.associatedSkillName}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <span className="text-slate-800 font-mono">{task.dateRange}</span>
-                          <span className="text-[11px] text-slate-400 block">{task.scope}</span>
-                        </td>
-
-                        <td className="px-4 py-4 text-slate-700">
-                          {task.creator}
-                        </td>
-
-                        <td className="px-4 py-4">
-                          {task.status === 'completed' ? (
-                            <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>生成完毕 (100%)</span>
-                            </div>
-                          ) : task.status === 'processing' ? (
-                            <div className="space-y-1.5 min-w-[140px]">
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="text-blue-600 font-semibold flex items-center gap-1">
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                  正在运算
-                                </span>
-                                <span className="font-mono text-slate-600">{task.progress}%</span>
-                              </div>
-                              <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                                  style={{ width: `${task.progress}%` }}
-                                />
-                              </div>
-                              <span className="text-[10px] text-slate-400 truncate block">
-                                {task.stepLog}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-rose-600 font-semibold flex items-center gap-1">
-                              <AlertTriangle className="w-4 h-4" />
-                              生成失败
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                            {task.fileFormat}
-                          </span>
-                          {task.fileSize && (
-                            <span className="text-[10px] text-slate-400 block mt-0.5">
-                              {task.fileSize}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {task.status === 'completed' && (
-                              <>
-                                <button
-                                  onClick={() => setPreviewTask(task)}
-                                  className="px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                  预览报告
-                                </button>
-                                <button
-                                  onClick={e => handleDownloadTaskReport(task, e)}
-                                  className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                                >
-                                  <Download className="w-3.5 h-3.5" />
-                                  下载 HTML
-                                </button>
-                              </>
-                            )}
-                          </div>
+                    {filteredTasks.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                          <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-[1.5]" />
+                          暂无符合条件的报告生成任务
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredTasks.map(task => {
+                        const isPeriodic = task.taskType === 'periodic';
+                        const isTaskActive = task.scheduleConfig?.isActive ?? true;
+
+                        return (
+                          <tr key={task.id} className="hover:bg-slate-50/80 transition-colors">
+                            {/* 列 1: 任务类型与标题 */}
+                            <td className="px-5 py-4">
+                              <div className="flex items-start gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                                  isPeriodic 
+                                    ? 'bg-purple-50 text-purple-600 border border-purple-200' 
+                                    : 'bg-blue-50 text-blue-600 border border-blue-200'
+                                }`}>
+                                  {isPeriodic ? <Repeat className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                      isPeriodic 
+                                        ? 'bg-purple-100 text-purple-700 border-purple-300' 
+                                        : 'bg-blue-100 text-blue-700 border-blue-300'
+                                    }`}>
+                                      {isPeriodic ? '🔄 周期巡检' : '⚡ 一次性'}
+                                    </span>
+
+                                    {isPeriodic && (
+                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                        isTaskActive 
+                                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                          : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                      }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isTaskActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                        {isTaskActive ? '调度运行中' : '已暂停'}
+                                      </span>
+                                    )}
+
+                                    <span className="text-[11px] text-slate-400 font-mono">
+                                      {task.id}
+                                    </span>
+                                  </div>
+
+                                  <div 
+                                    onClick={() => task.status === 'completed' && setPreviewTask(task)}
+                                    className={`font-bold text-slate-900 ${
+                                      task.status === 'completed' 
+                                        ? 'hover:text-blue-600 cursor-pointer' 
+                                        : ''
+                                    }`}
+                                  >
+                                    {task.reportTitle}
+                                  </div>
+
+                                  <div className="text-[11px] text-slate-400 font-mono">
+                                    创建于 {task.createdAt}
+                                    {isPeriodic && task.scheduleConfig?.lastExecutionTime && (
+                                      <span className="ml-2">· 上次执行: {task.scheduleConfig.lastExecutionTime}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* 列 2: 基础模板与 Skill */}
+                            <td className="px-4 py-4">
+                              <span className="font-medium text-slate-800 block">
+                                {task.templateName}
+                              </span>
+                              {task.associatedSkillName && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mt-1 inline-flex items-center gap-1">
+                                  <Zap className="w-2.5 h-2.5" />
+                                  {task.associatedSkillName}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 列 3: 调度规则与周期范围 */}
+                            <td className="px-4 py-4">
+                              {isPeriodic && task.scheduleConfig ? (
+                                <div className="space-y-1">
+                                  <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 inline-block font-mono">
+                                    {task.scheduleConfig.cronSummary}
+                                  </span>
+                                  <div className="text-[11px] text-slate-500 font-mono">
+                                    {task.scheduleConfig.nextExecutionTime ? `下次: ${task.scheduleConfig.nextExecutionTime}` : ''}
+                                  </div>
+                                  {task.scheduleConfig.notifyChannels && task.scheduleConfig.notifyChannels.length > 0 && (
+                                    <div className="flex items-center gap-1 pt-0.5 flex-wrap">
+                                      {task.scheduleConfig.notifyChannels.map(ch => (
+                                        <span key={ch} className="text-[9px] px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                          {ch === 'dingtalk' ? '钉钉' : ch === 'wecom' ? '企微' : ch === 'email' ? '邮件' : '站内'}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <span className="text-[11px] text-slate-400 block truncate max-w-[160px]">{task.scope}</span>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="text-slate-800 font-mono block">{task.dateRange}</span>
+                                  <span className="text-[11px] text-slate-400 block mt-0.5">{task.scope}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* 列 4: 责任人与目标群 */}
+                            <td className="px-4 py-4">
+                              <span className="font-medium text-slate-800 block">{task.creator}</span>
+                              {isPeriodic && task.scheduleConfig?.recipients && (
+                                <span className="text-[11px] text-slate-400 block truncate max-w-[140px] mt-0.5" title={task.scheduleConfig.recipients}>
+                                  接收: {task.scheduleConfig.recipients}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 列 5: 执行状态与进度 */}
+                            <td className="px-4 py-4">
+                              {task.status === 'completed' ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>就绪 (100%)</span>
+                                  </div>
+                                  {isPeriodic && (
+                                    <span className="text-[10px] text-slate-400 font-mono block">
+                                      累计触发: {task.scheduleConfig?.executionCount || 1} 次
+                                    </span>
+                                  )}
+                                </div>
+                              ) : task.status === 'processing' ? (
+                                <div className="space-y-1.5 min-w-[140px]">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="text-blue-600 font-semibold flex items-center gap-1">
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                      正在运算
+                                    </span>
+                                    <span className="font-mono text-slate-600">{task.progress}%</span>
+                                  </div>
+                                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                      style={{ width: `${task.progress}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 truncate block max-w-[180px]">
+                                    {task.stepLog}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-rose-600 font-semibold flex items-center gap-1">
+                                  <AlertTriangle className="w-4 h-4" />
+                                  生成失败
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 列 6: 交付件格式 */}
+                            <td className="px-4 py-4">
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                {task.fileFormat}
+                              </span>
+                              {task.fileSize && (
+                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                  {task.fileSize}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 列 7: 操作按钮 */}
+                            <td className="px-5 py-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                {task.status === 'completed' && (
+                                  <>
+                                    <button
+                                      onClick={() => setPreviewTask(task)}
+                                      className="px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="在线预览 HTML 报告"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                      预览
+                                    </button>
+                                    <button
+                                      onClick={e => handleDownloadTaskReport(task, e)}
+                                      className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="下载独立单文件 HTML"
+                                    >
+                                      <Download className="w-3.5 h-3.5" />
+                                      下载
+                                    </button>
+                                  </>
+                                )}
+
+                                {isPeriodic && (
+                                  <>
+                                    <button
+                                      onClick={e => handleTriggerPeriodicTaskRun(task, e)}
+                                      disabled={task.status === 'processing'}
+                                      className="px-2.5 py-1.5 text-xs font-semibold text-purple-700 hover:text-purple-900 hover:bg-purple-50 disabled:opacity-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                      title="立即触发一次手动生成"
+                                    >
+                                      <PlayCircle className="w-3.5 h-3.5" />
+                                      即刻触发
+                                    </button>
+
+                                    <button
+                                      onClick={e => handleToggleTaskActive(task.id, e)}
+                                      className={`p-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                                        isTaskActive 
+                                          ? 'text-amber-600 hover:bg-amber-50 hover:text-amber-800' 
+                                          : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800'
+                                      }`}
+                                      title={isTaskActive ? '挂起暂停周期调度' : '恢复启用周期调度'}
+                                    >
+                                      {isTaskActive ? <PauseCircle className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+                                    </button>
+                                  </>
+                                )}
+
+                                <button
+                                  onClick={e => handleDeleteTask(task.id, e)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="删除任务记录"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

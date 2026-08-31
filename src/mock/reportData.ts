@@ -162,6 +162,7 @@ export const DEFAULT_SAMPLE_HTML_TEMPLATE = `<!DOCTYPE html>
 export const INITIAL_REPORT_TASKS: ReportGenerationTask[] = [
   {
     id: 'RPT-TASK-20260830-01',
+    taskType: 'once',
     templateId: 'tpl-weekly-operation',
     templateName: '区域储能资产健康与运维运营周报',
     reportTitle: '华东一区 2026年第34周储能资产运营与主动运维分析简报',
@@ -185,7 +186,84 @@ export const INITIAL_REPORT_TASKS: ReportGenerationTask[] = [
     }
   },
   {
+    id: 'RPT-TASK-SCHED-01',
+    taskType: 'periodic',
+    templateId: 'tpl-weekly-operation',
+    templateName: '区域储能资产健康与运维运营周报',
+    reportTitle: '【周期调度】华东一区 区域运营周度主动运维全景简报',
+    periodType: 'week',
+    dateRange: '动态周期: 每周一 08:00 自动回溯上周数据',
+    scope: '华东一区 (全域484座电站)',
+    creator: '张伟 (系统定时巡检)',
+    createdAt: '2026-08-01 08:00',
+    completedAt: '2026-08-25 08:00:05',
+    status: 'completed',
+    progress: 100,
+    stepLog: '最近一次调度成功生成，已向【华东运维大群】推送报告',
+    fileFormat: 'HTML',
+    fileSize: '1.48 MB',
+    scheduleConfig: {
+      frequency: 'weekly',
+      executionTime: '08:00',
+      dayOfWeek: 1,
+      cronSummary: '每周一 08:00 定时执行',
+      dataWindow: 'previous_cycle',
+      isActive: true,
+      nextExecutionTime: '2026-08-31 08:00:00',
+      lastExecutionTime: '2026-08-25 08:00:00',
+      executionCount: 14,
+      notifyChannels: ['dingtalk', 'wecom', 'system'],
+      recipients: '华东运维班组群、区域技术专工'
+    },
+    config: {
+      includeAiInsights: true,
+      includeDischargeDetails: true,
+      includeSlaTickets: true,
+      includeRiskMatrix: true,
+      includeRoutineTasks: true
+    }
+  },
+  {
+    id: 'RPT-TASK-SCHED-02',
+    taskType: 'periodic',
+    templateId: 'tpl-monthly-whitepaper',
+    templateName: '储能电站月度主动运维与机理诊断白皮书',
+    reportTitle: '【周期调度】全域储能资产月度主动运维与机理诊断白皮书',
+    periodType: 'month',
+    dateRange: '动态周期: 每月 1 日 09:00 自动回溯上月整月数据',
+    scope: '华东一区 (全域484座电站)',
+    creator: '李工 (技术总监)',
+    createdAt: '2026-07-01 09:00',
+    completedAt: '2026-08-01 09:00:08',
+    status: 'completed',
+    progress: 100,
+    stepLog: '最近一次月报生成归档完成，已抄送资产管理委员会',
+    fileFormat: 'HTML',
+    fileSize: '2.35 MB',
+    scheduleConfig: {
+      frequency: 'monthly',
+      executionTime: '09:00',
+      dayOfMonth: 1,
+      cronSummary: '每月 1 日 09:00 定时执行',
+      dataWindow: 'previous_cycle',
+      isActive: true,
+      nextExecutionTime: '2026-09-01 09:00:00',
+      lastExecutionTime: '2026-08-01 09:00:00',
+      executionCount: 6,
+      notifyChannels: ['email', 'wecom'],
+      recipients: '资产管理部、储能技术委员会'
+    },
+    config: {
+      includeAiInsights: true,
+      includeDischargeDetails: true,
+      includeSlaTickets: true,
+      includeRiskMatrix: true,
+      includeRoutineTasks: true
+    }
+  },
+  {
     id: 'RPT-TASK-20260830-02',
+    taskType: 'once',
     templateId: 'tpl-monthly-whitepaper',
     templateName: '储能电站月度主动运维与机理诊断白皮书',
     reportTitle: '华东一区 2026年8月储能资产深度运维与健康诊断白皮书',
@@ -209,7 +287,45 @@ export const INITIAL_REPORT_TASKS: ReportGenerationTask[] = [
     }
   },
   {
+    id: 'RPT-TASK-SCHED-03',
+    taskType: 'periodic',
+    templateId: 'tpl-safety-compliance',
+    templateName: '储能安全生产合规与例行作业履约专项报告',
+    reportTitle: '【周期调度】每日全域储能电站例行安全合规与早班作业巡查',
+    periodType: 'custom',
+    dateRange: '动态周期: 每日 06:30 自动回溯近 24 小时数据',
+    scope: '华东一区 (全域484座电站)',
+    creator: '王安全 (安监专员)',
+    createdAt: '2026-08-10 06:30',
+    completedAt: '2026-08-25 06:30:03',
+    status: 'completed',
+    progress: 100,
+    stepLog: '调度任务暂停中 (已由责任人挂起维护)',
+    fileFormat: 'HTML',
+    fileSize: '1.20 MB',
+    scheduleConfig: {
+      frequency: 'daily',
+      executionTime: '06:30',
+      cronSummary: '每日 06:30 定时执行',
+      dataWindow: 'recent_24h',
+      isActive: false,
+      nextExecutionTime: '已挂起 (暂停中)',
+      lastExecutionTime: '2026-08-25 06:30:00',
+      executionCount: 15,
+      notifyChannels: ['dingtalk', 'system'],
+      recipients: '早班值守班组'
+    },
+    config: {
+      includeAiInsights: true,
+      includeDischargeDetails: false,
+      includeSlaTickets: true,
+      includeRiskMatrix: true,
+      includeRoutineTasks: true
+    }
+  },
+  {
     id: 'RPT-TASK-20260830-03',
+    taskType: 'once',
     templateId: 'tpl-station-health-special',
     templateName: '单电站专题体检与极端工况机理诊断报告',
     reportTitle: '【专项体检】宿迁泗洪50MW储能电站极柱接触内阻专项分析报告',
