@@ -1,4 +1,4 @@
-import { OperationsMetrics, TicketItem, RiskItem, RoutineTaskItem } from '../types';
+import { OperationsMetrics, TicketItem, RiskItem, RoutineTaskItem, OperationSkill } from '../types';
 
 export interface GenerateHtmlReportParams {
   reportTitle: string;
@@ -12,6 +12,8 @@ export interface GenerateHtmlReportParams {
   risks?: RiskItem[];
   tasks?: RoutineTaskItem[];
   includeAiInsights?: boolean;
+  customHtmlTemplate?: string;
+  skillData?: OperationSkill;
 }
 
 export function generateReportHtml(params: GenerateHtmlReportParams): string {
@@ -26,7 +28,9 @@ export function generateReportHtml(params: GenerateHtmlReportParams): string {
     tickets = [],
     risks = [],
     tasks = [],
-    includeAiInsights = true
+    includeAiInsights = true,
+    customHtmlTemplate,
+    skillData
   } = params;
 
   const nowStr = '2026-08-25 17:30:00';
@@ -46,6 +50,428 @@ export function generateReportHtml(params: GenerateHtmlReportParams): string {
   // 计算例行任务统计
   const totalTasks = tasks.length || 12;
   const overdueTasks = tasks.filter(t => t.status === '已超期').length || 2;
+
+  // 如果提供了自定义 HTML 模板，进行占位符插值替换
+  if (customHtmlTemplate && customHtmlTemplate.trim().length > 0) {
+    let renderedHtml = customHtmlTemplate;
+
+    // 常用基础变量替换
+    renderedHtml = renderedHtml.replace(/\{\{\s*reportTitle\s*\}\}/g, reportTitle);
+    renderedHtml = renderedHtml.replace(/\{\{\s*templateCategory\s*\}\}/g, templateCategory);
+    renderedHtml = renderedHtml.replace(/\{\{\s*templateCode\s*\}\}/g, templateCode);
+    renderedHtml = renderedHtml.replace(/\{\{\s*scope\s*\}\}/g, scope);
+    renderedHtml = renderedHtml.replace(/\{\{\s*dateRange\s*\}\}/g, dateRange);
+    renderedHtml = renderedHtml.replace(/\{\{\s*creator\s*\}\}/g, creator);
+    renderedHtml = renderedHtml.replace(/\{\{\s*reportNo\s*\}\}/g, reportNo);
+    renderedHtml = renderedHtml.replace(/\{\{\s*generateTime\s*\}\}/g, nowStr);
+    renderedHtml = renderedHtml.replace(/\{\{\s*nowStr\s*\}\}/g, nowStr);
+
+    // Skill 相关变量替换
+    if (skillData) {
+      renderedHtml = renderedHtml.replace(/\{\{\s*skillName\s*\}\}/g, skillData.name);
+      renderedHtml = renderedHtml.replace(/\{\{\s*skillCode\s*\}\}/g, skillData.code);
+      renderedHtml = renderedHtml.replace(/\{\{\s*skillVersion\s*\}\}/g, skillData.version);
+      renderedHtml = renderedHtml.replace(/\{\{\s*skillAuthor\s*\}\}/g, skillData.author);
+      renderedHtml = renderedHtml.replace(/\{\{\s*targetDomain\s*\}\}/g, skillData.targetDomain);
+      renderedHtml = renderedHtml.replace(/\{\{\s*rulesCount\s*\}\}/g, `${skillData.rulesCount}`);
+    }
+
+    // KPI 数据替换
+    renderedHtml = renderedHtml.replace(/\{\{\s*cloudRate\s*\}\}/g, `${metrics.cloudRate.percentage}%`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*powerOnRate\s*\}\}/g, `${metrics.powerOnRate.percentage}%`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*slaRate\s*\}\}/g, slaRate);
+    renderedHtml = renderedHtml.replace(/\{\{\s*totalTickets\s*\}\}/g, `${totalTickets}`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*completedTickets\s*\}\}/g, `${completedTickets}`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*totalRisks\s*\}\}/g, `${totalRisks}`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*convertedRisks\s*\}\}/g, `${convertedRisks}`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*totalTasks\s*\}\}/g, `${totalTasks}`);
+    renderedHtml = renderedHtml.replace(/\{\{\s*overdueTasks\s*\}\}/g, `${overdueTasks}`);
+
+    // 如果上传的只是 HTML 片段，且不包含 <html> 标签，则自动包裹自适应外壳
+    if (!renderedHtml.includes('<html') && !renderedHtml.includes('<!DOCTYPE')) {
+      return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${reportTitle}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f0f2f5;
+      color: #1f1f1f;
+      line-height: 1.6;
+      padding: 24px;
+    }
+    .custom-report-box {
+      max-width: 1080px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 32px 40px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e8e8e8;
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .custom-report-box { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="custom-report-box">
+    ${renderedHtml}
+  </div>
+</body>
+</html>`;
+    }
+
+    return renderedHtml;
+  }
+
+  // 如果是 Skill 专属专项报告，生成专属的 Skill 诊断报告模板结构
+  if (skillData || templateCategory === 'Skill专属专项') {
+    const activeSkill = skillData || {
+      name: '储能电站温升与热失控机理主动研判 Skill',
+      code: 'SKILL-BMS-THERMAL-01',
+      version: 'v2.4.0',
+      category: '安全防护' as const,
+      description: '通过融合单体电芯温升斜率 (dT/dt)、Rack 间温差离散度与冷却液流量压力时序，在热失控潜伏期（提前48~72h）捕获微短路与局域热阻异常。',
+      author: '主动运维算法实验室 · 储能安全机理组',
+      targetDomain: '磷酸铁锂/三元锂储能集装箱、BMS采样单元、液冷机组',
+      rulesCount: 4,
+      triggerConditions: [
+        '单体电芯温升速率 dT/dt > 1.8 ℃/min (充放电期间)',
+        '同一簇内电芯最高温差 ΔT_max > 6.5 ℃ 持续超过 15 分钟',
+        '液冷供回水温差 > 4.2 ℃ 且伴随循环泵出口压力脉动 > 0.08 MPa',
+        '静置状态下电芯自放电压降速率 dV/dt > 15 mV/day'
+      ],
+      diagnosticLogic: '对采集数据进行卡尔曼滤波与机理特征拟合，提取热阻分布矩阵并对比 3σ 偏差。',
+      outputSections: [
+        '一、Skill 诊断执行与机理规则命中矩阵',
+        '二、全域受控站点特征参数分布与异动扫描',
+        '三、重点高危电站与关联工单处置追踪',
+        '四、算法推荐专家阻断与预防性整改指令'
+      ]
+    };
+
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${reportTitle}</title>
+  <style>
+    :root {
+      --primary: #722ed1;
+      --primary-dark: #531dab;
+      --primary-light: #f9f0ff;
+      --success: #52c41a;
+      --warning: #fa8c16;
+      --danger: #f5222d;
+      --text-main: #1f1f1f;
+      --text-muted: #8c8c8c;
+      --bg-light: #fafafa;
+      --border-color: #e8e8e8;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f0f2f5;
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 24px;
+      margin: 0;
+    }
+    .report-container {
+      max-width: 1080px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 36px 48px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--border-color);
+    }
+    .skill-banner {
+      background: linear-gradient(135deg, #2b1d52 0%, #432274 50%, #722ed1 100%);
+      color: white;
+      padding: 24px 30px;
+      border-radius: 10px;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .skill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .skill-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0 0 8px 0;
+      color: #ffffff;
+    }
+    .skill-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.85);
+      margin-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 12px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--text-main);
+      margin: 28px 0 16px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .section-header .sec-tag {
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .rule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .rule-table th {
+      background: #fafafa;
+      text-align: left;
+      padding: 10px 14px;
+      color: #595959;
+      border-bottom: 2px solid var(--border-color);
+      font-weight: 600;
+    }
+    .rule-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill-hit { background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e; }
+    .pill-warn { background: #fffbe6; color: #d46b08; border: 1px solid #ffe58f; }
+    .pill-pass { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .kpi-box .val {
+      font-size: 22px;
+      font-weight: bold;
+      color: var(--text-main);
+      margin-top: 4px;
+    }
+    .kpi-box .lbl {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .logic-callout {
+      background: #fdf6ec;
+      border-left: 4px solid #e6a23c;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: #606266;
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+    .action-list {
+      background: #f0f5ff;
+      border: 1px solid #adc6ff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      color: #1d39c4;
+      font-size: 13px;
+    }
+    .action-list li { margin-bottom: 8px; }
+    .footer-stamp {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .report-container { box-shadow: none; border: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="report-container">
+  <!-- Skill 顶部专业标识 -->
+  <div class="skill-banner">
+    <div class="skill-badge">⚡ AI 运维机理 Skill 专项报告</div>
+    <h1 class="skill-title">${reportTitle}</h1>
+    <div>${activeSkill.description}</div>
+    <div class="skill-meta-grid">
+      <div><strong>Skill 编号:</strong> ${activeSkill.code}</div>
+      <div><strong>模型版本:</strong> ${activeSkill.version}</div>
+      <div><strong>适用领域:</strong> ${activeSkill.targetDomain}</div>
+      <div><strong>编制人:</strong> ${creator}</div>
+    </div>
+  </div>
+
+  <!-- KPI 概览 -->
+  <div class="kpi-row">
+    <div class="kpi-box" style="border-top: 3px solid #722ed1;">
+      <div class="lbl">Skill 评估规则总数</div>
+      <div class="val" style="color: #722ed1;">${activeSkill.rulesCount} 项</div>
+    </div>
+    <div class="kpi-box" style="border-top: 3px solid #f5222d;">
+      <div class="lbl">命中预警特征规则</div>
+      <div class="val" style="color: #f5222d;">2 项 (高危)</div>
+    </div>
+    <div class="kpi-box" style="border-top: 3px solid #1890ff;">
+      <div class="lbl">扫描受控电站基数</div>
+      <div class="val" style="color: #1890ff;">484 座</div>
+    </div>
+    <div class="kpi-box" style="border-top: 3px solid #52c41a;">
+      <div class="lbl">机理模型置信度</div>
+      <div class="val" style="color: #52c41a;">99.4%</div>
+    </div>
+  </div>
+
+  <!-- 一、Skill 核心诊断逻辑与推理链 -->
+  <div class="section-header">
+    <span class="sec-tag">Phase 1</span>
+    <span>一、Skill 诊断机理与推理依据</span>
+  </div>
+  <div class="logic-callout">
+    <strong>🔬 机理分析链：</strong>
+    <p style="margin: 6px 0 0 0;">${activeSkill.diagnosticLogic.replace(/\n/g, '<br/>')}</p>
+  </div>
+
+  <!-- 二、规则触发与命中判定矩阵 -->
+  <div class="section-header">
+    <span class="sec-tag">Phase 2</span>
+    <span>二、诊断规则触发与阈值命中矩阵</span>
+  </div>
+  <table class="rule-table">
+    <thead>
+      <tr>
+        <th style="width: 60px;">序号</th>
+        <th>触发条件定义 (Condition Rule)</th>
+        <th style="width: 140px;">实测最大偏差</th>
+        <th style="width: 120px;">诊断判定</th>
+        <th>典型命中电站</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${activeSkill.triggerConditions.map((cond, idx) => {
+        const isHit = idx === 0 || idx === 1;
+        const isWarn = idx === 2;
+        return `
+          <tr>
+            <td><strong>#0${idx + 1}</strong></td>
+            <td>${cond}</td>
+            <td style="font-weight: bold; color: ${isHit ? '#cf1322' : isWarn ? '#d46b08' : '#389e0d'};">
+              ${isHit ? '+2.4 ℃/min (超标 33%)' : isWarn ? 'ΔP: 0.092 MPa (临界)' : '正常包络线内'}
+            </td>
+            <td>
+              <span class="status-pill ${isHit ? 'pill-hit' : isWarn ? 'pill-warn' : 'pill-pass'}">
+                ${isHit ? '🔴 命中告警' : isWarn ? '🟡 临界关注' : '🟢 正常受控'}
+              </span>
+            </td>
+            <td>${isHit ? '苏州工业园 #02舱 (ST-SZ-002)' : isWarn ? '临港重载站 #01液冷机 (ST-LG-001)' : '全域482座电站正常'}</td>
+          </tr>
+        `;
+      }).join('')}
+    </tbody>
+  </table>
+
+  <!-- 三、关联风险与消缺工单闭环 -->
+  <div class="section-header">
+    <span class="sec-tag">Phase 3</span>
+    <span>三、关联风险转办与消缺工单追踪</span>
+  </div>
+  <table class="rule-table">
+    <thead>
+      <tr>
+        <th>工单编号</th>
+        <th>关联电站</th>
+        <th>缺陷描述</th>
+        <th>SLA 状态</th>
+        <th>当前责任人</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tickets.slice(0, 3).map(t => `
+        <tr>
+          <td><strong style="color: #1890ff;">${t.id}</strong></td>
+          <td>${t.stationName}</td>
+          <td>${t.title}</td>
+          <td><span class="status-pill pill-warn">SLA 剩余 ${t.slaRemainingHours}h</span></td>
+          <td>${t.assignee}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <!-- 四、AI 专家消缺与防御整改指令 -->
+  <div class="section-header">
+    <span class="sec-tag">Phase 4</span>
+    <span>四、AI 专家推荐处置与整改指导清单</span>
+  </div>
+  <div class="action-list">
+    <ol style="margin: 0; padding-left: 20px;">
+      <li><strong>立即阻断异常升温</strong>：针对苏州工业园 #02 舱 Rack 04，下调充放电截止功率上限 20%，并联动现场开启强制对流制冷。</li>
+      <li><strong>红外与绝缘阻抗复核</strong>：指令现场特种班组携带热成像仪于今日 18:00 前完成极柱螺栓力矩校核，防止接触内阻引发局部恶性发热。</li>
+      <li><strong>全域基线同步更新</strong>：将本次捕获的特征向量同步至华东全域 484 座电站边缘计算节点，提升防热失控先验预测精度。</li>
+    </ol>
+  </div>
+
+  <div class="footer-stamp">
+    <div>
+      <div>报告编号: <strong>${reportNo}</strong> | 引擎: AI Skill 機理推演中心</div>
+      <div style="margin-top: 4px;">统计周期: ${dateRange} | 范围: ${scope}</div>
+    </div>
+    <div style="text-align: right;">
+      <div>编制人: <strong>${creator}</strong></div>
+      <div style="color: #52c41a; font-weight: 600; margin-top: 4px;">✓ 算法机理校验通过</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>`;
+  }
+
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">

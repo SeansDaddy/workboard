@@ -105,6 +105,60 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
   }
 ];
 
+export const DEFAULT_SAMPLE_HTML_TEMPLATE = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{{reportTitle}}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; color: #1e293b; background: #f8fafc; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; border-radius: 12px; padding: 28px; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .metric { background: #f1f5f9; padding: 16px; border-radius: 8px; }
+    .metric-value { font-size: 24px; font-weight: bold; color: #0f172a; margin-top: 4px; }
+    .metric-label { font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="font-size: 12px; opacity: 0.85; margin-bottom: 6px;">储能主动运维与资产健康智能报告</div>
+    <h1 style="margin: 0 0 12px 0; font-size: 24px;">{{reportTitle}}</h1>
+    <div style="font-size: 13px; opacity: 0.9; display: flex; gap: 20px;">
+      <span>📍 监测范围: {{scope}}</span>
+      <span>📅 统计周期: {{dateRange}}</span>
+      <span>👤 责任编制: {{creator}}</span>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-bottom: 24px;">
+    <div class="metric">
+      <div class="metric-label">全域上云率</div>
+      <div class="metric-value">{{cloudRate}}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">实时上电率</div>
+      <div class="metric-value">{{powerOnRate}}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">SLA 工单达标率</div>
+      <div class="metric-value">{{slaRate}}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">重点隐患预警</div>
+      <div class="metric-value">{{totalRisks}} 项</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 16px; margin-top: 0; color: #0f172a;">一、全域运行态势与消缺概况</h2>
+    <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+      本次报告覆盖监测范围 <strong>{{scope}}</strong>，统计周期为 <strong>{{dateRange}}</strong>。期间累计接入工单 <strong>{{totalTickets}}</strong> 单（已处理闭环 <strong>{{completedTickets}}</strong> 单），排查重点风险 <strong>{{totalRisks}}</strong> 项，执行例行任务 <strong>{{totalTasks}}</strong> 项（已超期 <strong>{{overdueTasks}}</strong> 项）。
+    </p>
+  </div>
+</body>
+</html>`;
+
 export const INITIAL_REPORT_TASKS: ReportGenerationTask[] = [
   {
     id: 'RPT-TASK-20260830-01',

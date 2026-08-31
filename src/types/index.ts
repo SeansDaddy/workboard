@@ -149,20 +149,44 @@ export interface OperationsMetrics {
   }>;
 }
 
+// 运维诊断 Skill (技能/机理模型) 规格定义
+export interface OperationSkill {
+  id: string; // 技能唯一标识
+  name: string; // 技能名称
+  code: string; // 技能编号，如 SKILL-BMS-THERMAL-01
+  version: string; // 版本号，如 v2.4.0
+  category: '安全防护' | 'SLA履约' | '电池诊断' | '设备体检' | '能效与调度' | '自定义Skill';
+  description: string; // 技能概述
+  author: string; // 编写专家/机构
+  targetDomain: string; // 适用业务域
+  rulesCount: number; // 规则数
+  triggerConditions: string[]; // 触发诊断规则条件
+  diagnosticLogic: string; // 核心诊断推理逻辑
+  outputSections: string[]; // 产出报告章节
+  skillContentRaw?: string; // 上传的 Skill 原始内容 (Markdown/YAML/JSON)
+  isCustom?: boolean; // 是否为用户上传/创建的自定义 Skill
+  createdAt?: string; // 创建时间
+}
+
 // 报告模板定义
 export interface ReportTemplate {
   id: string; // 模板唯一ID
   name: string; // 模板名称
   code: string; // 模板代码
-  category: '运营周报' | '月度白皮书' | '季度评估' | '单站深度体检' | '安全合规专项';
+  category: '运营周报' | '月度白皮书' | '季度评估' | '单站深度体检' | '安全合规专项' | '自定义专属专项' | 'AI生成模板' | 'Skill专属专项';
   description: string; // 模板简介
-  tag: '推荐' | '高频' | '管理层专报' | '技术专刊' | '安全专项';
+  tag: '推荐' | '高频' | '管理层专报' | '技术专刊' | '安全专项' | '自定义' | 'AI生成' | 'Skill报告' | '机理Skill';
   estimatedTime: string; // 预估生成耗时
   targetAudience: string; // 适用对象
   sections: string[]; // 包含的核心章节
   presetPeriod: 'week' | 'month' | 'quarter' | 'custom';
   defaultTitleTemplate: string; // 默认标题模板
   coverColor: string; // 封面主色调
+  htmlTemplate?: string; // 用户上传或自定义的 HTML 格式模板源码
+  isCustom?: boolean; // 是否为用户自定义创建的模板
+  isSkillTemplate?: boolean; // 是否为 Skill 衍生模板
+  associatedSkillId?: string; // 关联的 Skill ID
+  sourceSkillId?: string; // 关联的 Skill ID (如果是从 Skill 生成)
 }
 
 // 报告生成任务定义
@@ -183,6 +207,14 @@ export interface ReportGenerationTask {
   fileFormat: 'HTML' | 'PDF' | 'EXCEL';
   fileSize?: string; // 文件大小，如 1.4 MB
   htmlContent?: string; // 生成的 HTML 完整源码
+  associatedSkillId?: string;
+  associatedSkillName?: string;
+  skillMeta?: {
+    skillId: string;
+    skillName: string;
+    matchedRulesCount: number;
+    diagnosticConclusion: string;
+  };
   config?: {
     includeAiInsights: boolean; // 是否包含 AI 诊断分析与建议
     includeDischargeDetails: boolean; // 包含充放电效益明细
