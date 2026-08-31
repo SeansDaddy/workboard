@@ -42,7 +42,12 @@ import {
   Wrench,
   CheckCheck,
   Sliders,
-  Copy
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
+  BookmarkPlus,
+  Send,
+  HelpCircle
 } from 'lucide-react';
 
 interface RiskDetailViewProps {
@@ -381,6 +386,36 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
   const [handleNote, setHandleNote] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // 案例点赞/点踩反馈状态 (key: caseId, value: 'up' | 'down' | null)
+  const [caseFeedback, setCaseFeedback] = useState<Record<string, 'up' | 'down'>>({
+    'CASE-2026-0312': 'up'
+  });
+  // 案例反馈原因记录
+  const [caseFeedbackNotes, setCaseFeedbackNotes] = useState<Record<string, string>>({});
+  const [activeFeedbackModalCase, setActiveFeedbackModalCase] = useState<{ id: string; title: string; type: 'up' | 'down' } | null>(null);
+  const [feedbackNoteInput, setFeedbackNoteInput] = useState('');
+
+  // AI 诊断结果点赞/点踩反馈状态 ('up' | 'down' | null)
+  const [diagFeedback, setDiagFeedback] = useState<'up' | 'down' | null>(null);
+  const [diagFeedbackNote, setDiagFeedbackNote] = useState<string>('');
+  const [showDiagFeedbackModal, setShowDiagFeedbackModal] = useState<boolean>(false);
+  const [diagFeedbackType, setDiagFeedbackType] = useState<'up' | 'down'>('up');
+
+  // 一键转为案例弹窗状态
+  const [showSaveAsCaseModal, setShowSaveAsCaseModal] = useState(false);
+  const [newCaseData, setNewCaseData] = useState({
+    title: '',
+    stationName: '',
+    deviceType: '',
+    reportedSymptom: '',
+    actualRootCause: '',
+    resolutionAction: '',
+    preventionTip: '',
+    isPublic: true,
+    tags: 'AI诊断沉淀, 接触内阻, 极柱过热'
+  });
+  const [customCasesList, setCustomCasesList] = useState<SimilarHistoricalCase[]>([]);
+
   // 诊断任务状态
   const [diagTask, setDiagTask] = useState({
     id: 'DIAG-20260825-RK01',
@@ -493,6 +528,105 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
     onConvertToTicket(risk, text);
     setShowFullReportModal(false);
     setStatusMessage('已成功采纳 AI 故障机理诊断报告并一键转为 pcare 工单！');
+  };
+
+  // 点赞/点踩案例
+  const handleToggleCaseFeedback = (caseId: string, caseTitle: string, type: 'up' | 'down') => {
+    const current = caseFeedback[caseId];
+    if (current === type) {
+      // 取消反馈
+      const next = { ...caseFeedback };
+      delete next[caseId];
+      setCaseFeedback(next);
+      setStatusMessage(`已撤销对案例 [${caseId}] 的评价反馈。`);
+    } else {
+      // 打开反馈附注弹窗或直接记录
+      setActiveFeedbackModalCase({ id: caseId, title: caseTitle, type });
+      setFeedbackNoteInput(caseFeedbackNotes[caseId] || '');
+    }
+  };
+
+  // 提交案例反馈
+  const handleSaveCaseFeedback = () => {
+    if (!activeFeedbackModalCase) return;
+    const { id, type } = activeFeedbackModalCase;
+    setCaseFeedback((prev) => ({ ...prev, [id]: type }));
+    if (feedbackNoteInput.trim()) {
+      setCaseFeedbackNotes((prev) => ({ ...prev, [id]: feedbackNoteInput.trim() }));
+    }
+    setActiveFeedbackModalCase(null);
+    setStatusMessage(
+      type === 'up' 
+        ? `感谢反馈！已标记案例 [${id}] 为【可用/有参考价值】，将提升该类特征在全局案例库中的推荐权重。`
+        : `已收集反馈！已标记案例 [${id}] 为【错误/不适用】，模型将自动降权并记录专家修正建议。`
+    );
+  };
+
+  // 点赞/点踩 AI 诊断结论
+  const handleToggleDiagFeedback = (type: 'up' | 'down') => {
+    if (diagFeedback === type) {
+      setDiagFeedback(null);
+      setStatusMessage('已撤销对本次 AI 诊断推演结论的评价反馈。');
+    } else {
+      setDiagFeedbackType(type);
+      setShowDiagFeedbackModal(true);
+    }
+  };
+
+  // 提交 AI 诊断反馈
+  const handleSaveDiagFeedback = () => {
+    setDiagFeedback(diagFeedbackType);
+    setShowDiagFeedbackModal(false);
+    setStatusMessage(
+      diagFeedbackType === 'up'
+        ? '感谢反馈！已确认本次 AI 机理诊断结论【准确无误】，该诊断证据链已自动纳入专家基准库！'
+        : '已收集反馈！已标记本次 AI 诊断结果为【存在偏差/错误】，系统已捕获时序特征样本并提交算法团队复核调优。'
+    );
+  };
+
+  // 准备将 AI 诊断一键沉淀转为历史案例
+  const handleOpenSaveAsCaseModal = () => {
+    setNewCaseData({
+      title: `【${risk.stationName}】${risk.title.replace(/【.*?】/, '')} 深度诊断消缺案例`,
+      stationName: risk.stationName,
+      deviceType: `${risk.stationId}-Rack-01 (电芯极柱连接模组)`,
+      reportedSymptom: risk.symptomDetail || '单体极柱接触内阻偏离基线，大电流充放电时温升 ΔT 持续发散 (8.5℃)。',
+      actualRootCause: '微秒级高频阻抗逆变判定极柱连接螺栓预紧力衰减，导致接触电阻增大(+32.4%)，引发局部 28.5W 焦耳发热。',
+      resolutionAction: '使用数显扭矩扳手重新校准紧固至 10.0±0.5 N·m，清理极柱氧化层并均匀涂抹高导电防氧化紫铜硅脂。',
+      preventionTip: '每季度红外热像巡检对比充放电温差，并在检修期按标准力矩复核关键螺栓接触压紧力。',
+      isPublic: true,
+      tags: 'AI诊断沉淀, 接触内阻, 极柱过热, 标准SOP'
+    });
+    setShowSaveAsCaseModal(true);
+  };
+
+  // 确认保存为历史案例
+  const handleConfirmSaveAsCase = () => {
+    if (!newCaseData.title.trim()) {
+      setStatusMessage('案例标题不能为空！');
+      return;
+    }
+    const newCaseItem: SimilarHistoricalCase = {
+      id: `CASE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: newCaseData.title,
+      stationName: newCaseData.stationName,
+      deviceType: newCaseData.deviceType,
+      similarity: 99,
+      reportedSymptom: newCaseData.reportedSymptom,
+      actualRootCause: newCaseData.actualRootCause,
+      resolutionAction: newCaseData.resolutionAction,
+      resolutionTime: '1.5 小时 (AI辅助加速)',
+      resolvedBy: `${risk.assignee || '现场值守工程师'} (AI机理沉淀)`,
+      preventionTip: newCaseData.preventionTip
+    };
+
+    setCustomCasesList((prev) => [newCaseItem, ...prev]);
+    // 默认标记为可用案例
+    setCaseFeedback((prev) => ({ ...prev, [newCaseItem.id]: 'up' }));
+    setShowSaveAsCaseModal(false);
+    setStatusMessage(`🎉 成功将本次 AI 诊断结论沉淀为全局知识库案例 [${newCaseItem.id}]！已支持全局检索与经验借鉴。`);
+    // 自动切换到案例 tab 方便查看
+    setActiveTab('cases');
   };
 
   // 确认消除风险
@@ -850,72 +984,146 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
           {/* TAB 2: 历史相似案例库 */}
           {activeTab === 'cases' && (
             <div className="space-y-3.5">
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
                 <span className="text-xs text-[#8C8C8C]">
-                  基于向量空间相似度算法从全局知识库中匹配到 <strong>{recommendedCases.length}</strong> 条高相关性处置案例：
+                  基于向量空间相似度算法从全局知识库中匹配到 <strong>{[...customCasesList, ...recommendedCases].length}</strong> 条高相关性处置案例：
+                </span>
+                <span className="text-[11px] text-[#595959] bg-[#FAFAFA] px-2.5 py-1 rounded border border-[#E8E8E8] flex items-center gap-1.5 self-start sm:self-auto">
+                  <ThumbsUp className="w-3 h-3 text-[#52C41A]" />
+                  <span>支持对匹配案例进行【有用/错误】反馈，模型自动自适应调优</span>
                 </span>
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-                {recommendedCases.map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-4 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] hover:bg-white hover:border-[#91D5FF] transition-all space-y-2.5"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E6F7FF] text-[#1890FF] border border-[#91D5FF]">
-                          相似度 {c.similarity}%
-                        </span>
-                        <span className="font-mono text-xs font-semibold text-[#8C8C8C]">{c.id}</span>
-                        <span className="font-bold text-xs text-[#1F1F1F]">{c.title}</span>
-                      </div>
+                {[...customCasesList, ...recommendedCases].map((c) => {
+                  const feedback = caseFeedback[c.id];
+                  const feedbackNote = caseFeedbackNotes[c.id];
+                  const isNewlyAdded = customCasesList.some((item) => item.id === c.id);
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseModal(c)}
-                          className="px-2.5 py-1 text-xs text-[#1890FF] hover:bg-[#E6F7FF] rounded transition-colors cursor-pointer"
-                        >
-                          查看档案
-                        </button>
-                        {!isConverted && (
+                  return (
+                    <div
+                      key={c.id}
+                      className={`p-4 rounded-lg border transition-all space-y-2.5 ${
+                        feedback === 'down'
+                          ? 'border-[#FFA39E] bg-[#FFF1F0]/40'
+                          : feedback === 'up'
+                          ? 'border-[#B7EB8F] bg-[#F6FFED]/40'
+                          : 'border-[#E8E8E8] bg-[#FAFAFA] hover:bg-white hover:border-[#91D5FF]'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E6F7FF] text-[#1890FF] border border-[#91D5FF]">
+                            相似度 {c.similarity}%
+                          </span>
+                          {isNewlyAdded && (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#F9F0FF] text-[#722ED1] border border-[#D3ADF7] flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" />
+                              AI诊断新沉淀
+                            </span>
+                          )}
+                          <span className="font-mono text-xs font-semibold text-[#8C8C8C]">{c.id}</span>
+                          <span className="font-bold text-xs text-[#1F1F1F]">{c.title}</span>
+                          
+                          {/* 反馈状态标签 */}
+                          {feedback === 'up' && (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[#E6FFFB] text-[#08979C] border border-[#87E8DE] flex items-center gap-1">
+                              <ThumbsUp className="w-3 h-3 text-[#13C2C2]" />
+                              已标记可用案例
+                            </span>
+                          )}
+                          {feedback === 'down' && (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[#FFF2E8] text-[#D4380D] border border-[#FFBB96] flex items-center gap-1">
+                              <ThumbsDown className="w-3 h-3 text-[#FA541C]" />
+                              已标记错误/不适用
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 操作栏：点赞/点踩 + 查看档案 + 借鉴经验 */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center bg-white rounded border border-[#D9D9D9] p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              title="点赞：反馈此案例正确、可用并富有参考价值"
+                              onClick={() => handleToggleCaseFeedback(c.id, c.title, 'up')}
+                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                                feedback === 'up'
+                                  ? 'bg-[#52C41A] text-white font-bold'
+                                  : 'text-[#595959] hover:bg-gray-100 hover:text-[#52C41A]'
+                              }`}
+                            >
+                              <ThumbsUp className="w-3.5 h-3.5" />
+                              <span>{feedback === 'up' ? '可用' : '赞'}</span>
+                            </button>
+                            <div className="w-px h-3.5 bg-[#E8E8E8] mx-0.5" />
+                            <button
+                              type="button"
+                              title="点踩：反馈此案例错误、现象不符或处置措施失效"
+                              onClick={() => handleToggleCaseFeedback(c.id, c.title, 'down')}
+                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                                feedback === 'down'
+                                  ? 'bg-[#F5222D] text-white font-bold'
+                                  : 'text-[#595959] hover:bg-gray-100 hover:text-[#F5222D]'
+                              }`}
+                            >
+                              <ThumbsDown className="w-3.5 h-3.5" />
+                              <span>{feedback === 'down' ? '误判' : '踩'}</span>
+                            </button>
+                          </div>
+
                           <button
                             type="button"
-                            onClick={() => handleAdoptCase(c)}
-                            className="px-3 py-1 bg-white border border-[#1890FF] text-[#1890FF] hover:bg-[#1890FF] hover:text-white rounded text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                            onClick={() => setActiveCaseModal(c)}
+                            className="px-2.5 py-1 text-xs text-[#1890FF] hover:bg-[#E6F7FF] rounded transition-colors cursor-pointer"
                           >
-                            <Copy className="w-3 h-3" />
-                            <span>借鉴经验转工单</span>
+                            查看档案
                           </button>
-                        )}
+                          {!isConverted && (
+                            <button
+                              type="button"
+                              onClick={() => handleAdoptCase(c)}
+                              className="px-3 py-1 bg-white border border-[#1890FF] text-[#1890FF] hover:bg-[#1890FF] hover:text-white rounded text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                            >
+                              <Copy className="w-3 h-3" />
+                              <span>借鉴经验转工单</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
-                      <div className="bg-white p-2.5 rounded border border-[#F0F0F0]">
-                        <span className="text-[#8C8C8C] block text-[11px] mb-0.5">申报现象与告警:</span>
-                        <span className="text-[#595959]">{c.reportedSymptom}</span>
-                      </div>
-                      <div className="bg-white p-2.5 rounded border border-[#F0F0F0]">
-                        <span className="text-[#8C8C8C] block text-[11px] mb-0.5">查明真实根因:</span>
-                        <span className="text-[#262626] font-medium">{c.actualRootCause}</span>
-                      </div>
-                      <div className="bg-white p-2.5 rounded border border-[#F0F0F0]">
-                        <span className="text-[#8C8C8C] block text-[11px] mb-0.5">消缺处置措施:</span>
-                        <span className="text-[#0050B3] font-medium">{c.resolutionAction}</span>
-                      </div>
-                    </div>
+                      {feedbackNote && (
+                        <div className="text-[11px] text-[#595959] bg-white/90 p-2 rounded border border-[#E8E8E8] flex items-center gap-1.5">
+                          <MessageSquare className="w-3 h-3 text-[#1890FF] shrink-0" />
+                          <span><strong>反馈附注：</strong>{feedbackNote}</span>
+                        </div>
+                      )}
 
-                    <div className="flex items-center justify-between text-[11px] text-[#8C8C8C] pt-1 border-t border-[#F0F0F0]">
-                      <div className="flex items-center gap-3">
-                        <span>处置人: <strong className="text-[#595959]">{c.resolvedBy}</strong></span>
-                        <span>闭环耗时: <strong className="text-[#52C41A]">{c.resolutionTime}</strong></span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
+                        <div className="bg-white p-2.5 rounded border border-[#F0F0F0]">
+                          <span className="text-[#8C8C8C] block text-[11px] mb-0.5">申报现象与告警:</span>
+                          <span className="text-[#595959]">{c.reportedSymptom}</span>
+                        </div>
+                        <div className="bg-white p-2.5 rounded border border-[#F0F0F0]">
+                          <span className="text-[#8C8C8C] block text-[11px] mb-0.5">查明真实根因:</span>
+                          <span className="text-[#262626] font-medium">{c.actualRootCause}</span>
+                        </div>
+                        <div className="bg-white p-2.5 rounded border border-[#F0F0F0]">
+                          <span className="text-[#8C8C8C] block text-[11px] mb-0.5">消缺处置措施:</span>
+                          <span className="text-[#0050B3] font-medium">{c.resolutionAction}</span>
+                        </div>
                       </div>
-                      <span className="text-[#FA8C16]">防范建议: {c.preventionTip}</span>
+
+                      <div className="flex items-center justify-between text-[11px] text-[#8C8C8C] pt-1 border-t border-[#F0F0F0]">
+                        <div className="flex items-center gap-3">
+                          <span>处置人: <strong className="text-[#595959]">{c.resolvedBy}</strong></span>
+                          <span>闭环耗时: <strong className="text-[#52C41A]">{c.resolutionTime}</strong></span>
+                        </div>
+                        <span className="text-[#FA8C16]">防范建议: {c.preventionTip}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1130,11 +1338,53 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      {/* 结论区操作栏：点赞/点踩反馈 + 一键转案例 + 全屏报告 + 转工单 */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* 诊断结果点赞/点踩 */}
+                        <div className="flex items-center bg-white rounded border border-[#D9D9D9] p-0.5 shadow-2xs">
+                          <button
+                            type="button"
+                            title="反馈诊断结果准确：机理根因与现场吻合，已用于指导消缺"
+                            onClick={() => handleToggleDiagFeedback('up')}
+                            className={`px-2.5 py-1 rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                              diagFeedback === 'up'
+                                ? 'bg-[#52C41A] text-white font-bold'
+                                : 'text-[#595959] hover:bg-gray-100 hover:text-[#52C41A]'
+                            }`}
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            <span>{diagFeedback === 'up' ? '诊断准确' : '诊断准确'}</span>
+                          </button>
+                          <div className="w-px h-3.5 bg-[#E8E8E8] mx-0.5" />
+                          <button
+                            type="button"
+                            title="反馈诊断结果错误：根因判断有偏差或与实际不符"
+                            onClick={() => handleToggleDiagFeedback('down')}
+                            className={`px-2.5 py-1 rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                              diagFeedback === 'down'
+                                ? 'bg-[#F5222D] text-white font-bold'
+                                : 'text-[#595959] hover:bg-gray-100 hover:text-[#F5222D]'
+                            }`}
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                            <span>{diagFeedback === 'down' ? '诊断偏差' : '诊断偏差'}</span>
+                          </button>
+                        </div>
+
+                        {/* 一键转为案例按钮 */}
+                        <button
+                          type="button"
+                          onClick={handleOpenSaveAsCaseModal}
+                          className="px-3 py-1 bg-white border border-[#722ED1] text-[#722ED1] hover:bg-purple-50 rounded text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                        >
+                          <BookmarkPlus className="w-3.5 h-3.5 text-[#722ED1]" />
+                          <span>一键转为案例</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => setShowFullReportModal(true)}
-                          className="px-3 py-1 bg-white border border-[#722ED1] text-[#722ED1] hover:bg-purple-50 rounded text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+                          className="px-3 py-1 bg-white border border-[#D9D9D9] text-[#595959] hover:text-[#722ED1] hover:border-[#722ED1] rounded text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <FileText className="w-3.5 h-3.5" />
                           <span>全屏诊断报告</span>
@@ -1143,14 +1393,28 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
                           <button
                             type="button"
                             onClick={handleAdoptAiDiag}
-                            className="px-3.5 py-1 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                            className="px-3.5 py-1 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
                           >
                             <Check className="w-3.5 h-3.5" />
-                            <span>采纳诊断结论转工单</span>
+                            <span>采纳结论转工单</span>
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {diagFeedback && (
+                      <div className={`p-2 rounded text-xs flex items-center gap-2 ${
+                        diagFeedback === 'up' ? 'bg-[#F6FFED] border border-[#B7EB8F] text-[#389E0D]' : 'bg-[#FFF1F0] border border-[#FFA39E] text-[#CF1322]'
+                      }`}>
+                        {diagFeedback === 'up' ? <ThumbsUp className="w-3.5 h-3.5" /> : <ThumbsDown className="w-3.5 h-3.5" />}
+                        <span>
+                          {diagFeedback === 'up' 
+                            ? '已记录：该 AI 诊断结果被判定为【正确诊断】，已加入电站机理专家库。' 
+                            : '已记录：该 AI 诊断结果被判定为【存在偏差】，样本已回传模型实验室进行参数校正。'}
+                        </span>
+                        {diagFeedbackNote && <span className="text-[#595959] ml-2">附注：{diagFeedbackNote}</span>}
+                      </div>
+                    )}
 
                     <div className="bg-white p-3.5 rounded border border-purple-200 space-y-2">
                       <p className="text-xs text-[#1F1F1F] leading-relaxed">
@@ -1361,6 +1625,62 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
                 </div>
               </div>
 
+              {/* 诊断结论反馈状态栏 */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-purple-50/50 rounded border border-purple-200">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[#722ED1]">诊断结果有效性评价：</span>
+                  {diagFeedback === 'up' && (
+                    <span className="text-[#52C41A] font-medium flex items-center gap-1">
+                      <ThumbsUp className="w-3.5 h-3.5" /> 已标记【诊断准确】
+                    </span>
+                  )}
+                  {diagFeedback === 'down' && (
+                    <span className="text-[#F5222D] font-medium flex items-center gap-1">
+                      <ThumbsDown className="w-3.5 h-3.5" /> 已标记【存在偏差】
+                    </span>
+                  )}
+                  {!diagFeedback && <span className="text-[#8C8C8C]">暂未评价</span>}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-white rounded border border-[#D9D9D9] p-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDiagFeedback('up')}
+                      className={`px-2 py-0.5 rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                        diagFeedback === 'up' ? 'bg-[#52C41A] text-white font-bold' : 'text-[#595959] hover:bg-gray-100 hover:text-[#52C41A]'
+                      }`}
+                    >
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                      <span>准确</span>
+                    </button>
+                    <div className="w-px h-3.5 bg-[#E8E8E8] mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDiagFeedback('down')}
+                      className={`px-2 py-0.5 rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                        diagFeedback === 'down' ? 'bg-[#F5222D] text-white font-bold' : 'text-[#595959] hover:bg-gray-100 hover:text-[#F5222D]'
+                      }`}
+                    >
+                      <ThumbsDown className="w-3.5 h-3.5" />
+                      <span>偏差</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowFullReportModal(false);
+                      handleOpenSaveAsCaseModal();
+                    }}
+                    className="px-2.5 py-1 bg-white border border-[#722ED1] text-[#722ED1] hover:bg-purple-100 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                    <span>转为知识库案例</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="p-3.5 bg-white rounded border border-[#E8E8E8] space-y-2">
                 <h4 className="font-bold text-[#1F1F1F] text-xs">一、故障根因定性与拓扑溯源</h4>
                 <p className="text-[#595959] leading-relaxed">
@@ -1390,23 +1710,335 @@ export const RiskDetailView: React.FC<RiskDetailViewProps> = ({
               </div>
             </div>
 
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-[#E8E8E8]">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFullReportModal(false);
+                  handleOpenSaveAsCaseModal();
+                }}
+                className="px-3 py-1.5 bg-white border border-[#722ED1] text-[#722ED1] hover:bg-purple-50 rounded text-xs font-semibold cursor-pointer flex items-center gap-1.5"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5" />
+                <span>一键转为知识库案例</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFullReportModal(false)}
+                  className="px-3.5 py-1.5 border border-[#D9D9D9] text-[#595959] hover:bg-gray-50 rounded text-xs cursor-pointer"
+                >
+                  关闭
+                </button>
+                {!isConverted && (
+                  <button
+                    type="button"
+                    onClick={handleAdoptAiDiag}
+                    className="px-4 py-1.5 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-semibold cursor-pointer"
+                  >
+                    采纳报告结论并转工单
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 案例反馈原因弹窗 */}
+      {activeFeedbackModalCase && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-5 space-y-4 border border-[#E8E8E8] shadow-lg animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-[#E8E8E8] pb-3">
+              <div className="flex items-center gap-2">
+                {activeFeedbackModalCase.type === 'up' ? (
+                  <div className="p-1 rounded bg-[#F6FFED] text-[#52C41A] border border-[#B7EB8F]">
+                    <ThumbsUp className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <div className="p-1 rounded bg-[#FFF1F0] text-[#F5222D] border border-[#FFA39E]">
+                    <ThumbsDown className="w-4 h-4" />
+                  </div>
+                )}
+                <span className="font-bold text-sm text-[#1F1F1F]">
+                  {activeFeedbackModalCase.type === 'up' ? '标记为可用/优秀案例' : '标记为错误/不适用案例'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveFeedbackModalCase(null)}
+                className="text-[#8C8C8C] hover:text-[#262626] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-2.5 bg-[#FAFAFA] rounded border border-[#E8E8E8]">
+                <span className="text-[#8C8C8C] block text-[11px]">目标案例</span>
+                <span className="font-medium text-[#262626] font-mono">{activeFeedbackModalCase.id} - {activeFeedbackModalCase.title}</span>
+              </div>
+
+              <div>
+                <label className="text-[#595959] font-medium block mb-1">
+                  {activeFeedbackModalCase.type === 'up' 
+                    ? '评价说明（如：处置措施有效、根因判断与现场极度契合等，选填）：' 
+                    : '错误或不适用原因（如：设备型号不匹配、根因判断偏差、防范对策失效等，选填）：'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={feedbackNoteInput}
+                  onChange={(e) => setFeedbackNoteInput(e.target.value)}
+                  placeholder={
+                    activeFeedbackModalCase.type === 'up'
+                      ? '输入赞赏原因或关键经验亮点...'
+                      : '请说明为何判定此案例不适用或存在错误，帮助模型降权优化...'
+                  }
+                  className="w-full p-2.5 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#1890FF] bg-white"
+                />
+              </div>
+
+              <div className="text-[11px] text-[#8C8C8C] bg-blue-50/60 p-2 rounded border border-blue-100 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-[#1890FF] shrink-0" />
+                <span>您的反馈将实时接入知识库推荐算法与专家闭环微调体系。</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E8E8E8]">
+              <button
+                type="button"
+                onClick={() => setActiveFeedbackModalCase(null)}
+                className="px-3 py-1.5 border border-[#D9D9D9] text-[#595959] rounded text-xs cursor-pointer hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCaseFeedback}
+                className={`px-4 py-1.5 text-white rounded text-xs font-semibold cursor-pointer shadow-xs ${
+                  activeFeedbackModalCase.type === 'up'
+                    ? 'bg-[#52C41A] hover:bg-[#73D13D]'
+                    : 'bg-[#F5222D] hover:bg-[#FF4D4F]'
+                }`}
+              >
+                提交反馈
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI 诊断反馈弹窗 */}
+      {showDiagFeedbackModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-5 space-y-4 border border-[#E8E8E8] shadow-lg animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-[#E8E8E8] pb-3">
+              <div className="flex items-center gap-2">
+                {diagFeedbackType === 'up' ? (
+                  <div className="p-1 rounded bg-[#F6FFED] text-[#52C41A] border border-[#B7EB8F]">
+                    <ThumbsUp className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <div className="p-1 rounded bg-[#FFF1F0] text-[#F5222D] border border-[#FFA39E]">
+                    <ThumbsDown className="w-4 h-4" />
+                  </div>
+                )}
+                <span className="font-bold text-sm text-[#1F1F1F]">
+                  {diagFeedbackType === 'up' ? '反馈 AI 诊断结果正确' : '反馈 AI 诊断结果存在偏差/错误'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDiagFeedbackModal(false)}
+                className="text-[#8C8C8C] hover:text-[#262626] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-2.5 bg-purple-50/50 rounded border border-purple-200">
+                <span className="text-[#722ED1] font-mono block text-[11px]">任务编号: {diagTask.id}</span>
+                <span className="font-medium text-[#262626]">{diagTask.name || risk.title}</span>
+              </div>
+
+              <div>
+                <label className="text-[#595959] font-medium block mb-1">
+                  {diagFeedbackType === 'up'
+                    ? '专家确认说明（可记录现场实测吻合度、力矩实测值等）：'
+                    : '诊断偏差说明（例如真实根因是母线绝缘而非极柱内阻、推荐SOP不适等）：'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={diagFeedbackNote}
+                  onChange={(e) => setDiagFeedbackNote(e.target.value)}
+                  placeholder={
+                    diagFeedbackType === 'up'
+                      ? '输入现场核实确认细节...'
+                      : '请详细描述现场实际发现的真实故障原因与诊断差异...'
+                  }
+                  className="w-full p-2.5 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#722ED1] bg-white"
+                />
+              </div>
+
+              <div className="text-[11px] text-[#595959] bg-[#FAFAFA] p-2 rounded border border-[#E8E8E8]">
+                <span>说明：被点赞的诊断结论将优先推荐沉淀为知识库案例，被点踩的样本将进入误报样本集用于大模型强化学习迭代。</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E8E8E8]">
+              <button
+                type="button"
+                onClick={() => setShowDiagFeedbackModal(false)}
+                className="px-3 py-1.5 border border-[#D9D9D9] text-[#595959] rounded text-xs cursor-pointer hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDiagFeedback}
+                className={`px-4 py-1.5 text-white rounded text-xs font-semibold cursor-pointer shadow-xs ${
+                  diagFeedbackType === 'up'
+                    ? 'bg-[#52C41A] hover:bg-[#73D13D]'
+                    : 'bg-[#F5222D] hover:bg-[#FF4D4F]'
+                }`}
+              >
+                确认提交
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 一键转为历史案例模态框 */}
+      {showSaveAsCaseModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 border border-[#E8E8E8] shadow-2xl animate-in fade-in my-6">
+            <div className="flex items-center justify-between border-b border-[#E8E8E8] pb-3">
+              <div className="flex items-center gap-2">
+                <BookmarkPlus className="w-5 h-5 text-[#722ED1]" />
+                <div>
+                  <h3 className="font-bold text-base text-[#1F1F1F]">
+                    将本次 AI 诊断与消缺对策一键沉淀为历史案例
+                  </h3>
+                  <p className="text-[11px] text-[#8C8C8C]">
+                    系统已自动提取诊断根因、证据链数据与 SOP，请复核后归档至全局案例库
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSaveAsCaseModal(false)}
+                className="text-[#8C8C8C] hover:text-[#262626] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[#595959] font-medium block">案例标题：</label>
+                  <input
+                    type="text"
+                    value={newCaseData.title}
+                    onChange={(e) => setNewCaseData({ ...newCaseData, title: e.target.value })}
+                    className="w-full p-2 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#722ED1]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[#595959] font-medium block">发生电站 / 关联设备：</label>
+                  <input
+                    type="text"
+                    value={`${newCaseData.stationName} · ${newCaseData.deviceType}`}
+                    onChange={(e) => setNewCaseData({ ...newCaseData, deviceType: e.target.value })}
+                    className="w-full p-2 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#722ED1]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[#595959] font-medium block">申报现象与遥测预警特征：</label>
+                <textarea
+                  rows={2}
+                  value={newCaseData.reportedSymptom}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, reportedSymptom: e.target.value })}
+                  className="w-full p-2 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#722ED1]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[#595959] font-medium block">AI 诊断查明真实根因 (Root Cause)：</label>
+                <textarea
+                  rows={2}
+                  value={newCaseData.actualRootCause}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, actualRootCause: e.target.value })}
+                  className="w-full p-2 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#722ED1]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[#0050B3] font-medium block">消缺处置方案与操作细节：</label>
+                <textarea
+                  rows={2}
+                  value={newCaseData.resolutionAction}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, resolutionAction: e.target.value })}
+                  className="w-full p-2 border border-[#91D5FF] rounded text-xs focus:outline-none focus:border-[#1890FF] bg-blue-50/30"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[#D46B08] font-medium block">长效防范策略与巡检要点：</label>
+                <textarea
+                  rows={2}
+                  value={newCaseData.preventionTip}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, preventionTip: e.target.value })}
+                  className="w-full p-2 border border-[#FFD591] rounded text-xs focus:outline-none focus:border-[#FA8C16] bg-orange-50/30"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-[#595959] font-medium block">检索标签 (Tags)：</label>
+                  <input
+                    type="text"
+                    value={newCaseData.tags}
+                    onChange={(e) => setNewCaseData({ ...newCaseData, tags: e.target.value })}
+                    className="w-full p-2 border border-[#D9D9D9] rounded text-xs focus:outline-none focus:border-[#722ED1]"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-5">
+                  <input
+                    type="checkbox"
+                    id="isPublicCase"
+                    checked={newCaseData.isPublic}
+                    onChange={(e) => setNewCaseData({ ...newCaseData, isPublic: e.target.checked })}
+                    className="rounded text-[#722ED1] focus:ring-[#722ED1]"
+                  />
+                  <label htmlFor="isPublicCase" className="text-xs text-[#262626] font-medium cursor-pointer">
+                    发布至全网共享案例库 (跨电站相似故障自动推荐)
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E8E8E8]">
               <button
                 type="button"
-                onClick={() => setShowFullReportModal(false)}
-                className="px-3.5 py-1.5 border border-[#D9D9D9] text-[#595959] hover:bg-gray-50 rounded text-xs cursor-pointer"
+                onClick={() => setShowSaveAsCaseModal(false)}
+                className="px-3.5 py-1.5 border border-[#D9D9D9] text-[#595959] rounded text-xs hover:bg-gray-50 cursor-pointer"
               >
-                关闭
+                取消
               </button>
-              {!isConverted && (
-                <button
-                  type="button"
-                  onClick={handleAdoptAiDiag}
-                  className="px-4 py-1.5 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-semibold cursor-pointer"
-                >
-                  采纳报告结论并转工单
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleConfirmSaveAsCase}
+                className="px-4 py-1.5 bg-[#722ED1] hover:bg-[#531DAB] text-white rounded text-xs font-semibold cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>确认入库并沉淀为案例</span>
+              </button>
             </div>
           </div>
         </div>
